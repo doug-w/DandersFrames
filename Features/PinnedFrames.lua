@@ -475,17 +475,21 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
     if self.bossHandlers[setIndex] then return self.bossHandlers[setIndex] end
     if InCombatLockdown() then return nil end
 
-    -- Parent to UIParent so the handler lifetime is independent of the
-    -- container. Handler itself is never rendered.
+    -- Handler is parented to the container and anchored to fill it, so
+    -- positions computed relative to the handler equal positions relative
+    -- to the container. The restricted environment only accepts SecureHandler*
+    -- frames as SetPoint targets, so we can't anchor to the plain container
+    -- directly — we anchor to the handler instead.
     local handler = CreateFrame("Frame",
         "DandersBossPositionHandler" .. setIndex,
-        UIParent,
+        container,
         "SecureHandlerStateTemplate")
+    handler:SetAllPoints(container)
     handler:Hide()
 
-    -- Frame refs: container + each boss frame, addressable from snippets
-    -- via self:GetFrameRef("container") / self:GetFrameRef("bossN")
-    SecureHandlerSetFrameRef(handler, "container", container)
+    -- Frame refs for snippets: each boss frame addressable via
+    -- self:GetFrameRef("bossN"). Container ref isn't needed now that we
+    -- anchor to the handler.
     for i = 1, 8 do
         local f = bossFrames[i]
         if f then
@@ -494,10 +498,10 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
     end
 
     -- Reposition snippet: compacts visible boss frames to the set anchor.
+    -- Frames are anchored to `self` (the handler), which fills the container
+    -- exactly, so anchoring to the handler is equivalent to anchoring to the
+    -- container for positioning purposes.
     handler:SetAttribute("repositionBossFrames", [[
-        local container = self:GetFrameRef("container")
-        if not container then return end
-
         local frameWidth = tonumber(self:GetAttribute("frameWidth")) or 120
         local frameHeight = tonumber(self:GetAttribute("frameHeight")) or 50
         local hSpacing = tonumber(self:GetAttribute("hSpacing")) or 2
@@ -538,17 +542,7 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
             end
 
             f:ClearAllPoints()
-            f:SetPoint(anchor, container, anchor, xOff, yOff)
-        end
-
-        -- Hidden frames parked at origin; keeps them from hanging out at
-        -- stale positions if their visibility later flips.
-        for i = 1, 8 do
-            local f = self:GetFrameRef("boss" .. i)
-            if f and not f:IsShown() then
-                f:ClearAllPoints()
-                f:SetPoint(anchor, container, anchor, 0, 0)
-            end
+            f:SetPoint(anchor, self, anchor, xOff, yOff)
         end
     ]])
 
