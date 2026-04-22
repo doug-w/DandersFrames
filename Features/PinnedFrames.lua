@@ -552,21 +552,12 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
         end
     ]])
 
-    -- Per-boss state drivers with _onstate snippets that Show/Hide the
-    -- matching boss frame, then run the reposition snippet. This replaces
-    -- the visibility state driver we used to put on each boss frame.
+    -- Per-boss state drivers on the handler. The _onstate snippet just
+    -- runs the reposition snippet; Show/Hide is handled by each boss
+    -- frame's own "visibility" state driver (see CreateBossFrames).
     for i = 1, 8 do
         local stateName = "boss" .. i
-        local refName = "boss" .. i
         handler:SetAttribute("_onstate-" .. stateName, [[
-            local f = self:GetFrameRef("]] .. refName .. [[")
-            if f then
-                if newstate == "yes" then
-                    f:Show()
-                else
-                    f:Hide()
-                end
-            end
             self:RunAttribute("repositionBossFrames")
         ]])
         RegisterStateDriver(handler, stateName, "[@boss" .. i .. ",help]yes;no")
@@ -644,10 +635,11 @@ function PinnedFrames:CreateBossFrames(setIndex, container)
             DF:InitializeHeaderChild(frame)
         end
 
-        -- Visibility is driven by the set's SecureHandlerStateTemplate handler
-        -- (created via CreateBossSecureHandler after this loop). The handler
-        -- owns 8 state drivers and runs Show/Hide + reposition in secure
-        -- snippets that work during combat. Per-frame state drivers removed.
+        -- Per-frame visibility state driver: shows the frame when bossN
+        -- exists AND is friendly. The SecureHandlerStateTemplate handler
+        -- (created after this loop) runs a parallel state driver that fires
+        -- the compact reposition snippet whenever visibility flips.
+        RegisterStateDriver(frame, "visibility", "[@boss" .. i .. ",help]show;hide")
 
         -- Self-sufficient event system (ElvUI/oUF-style).
         -- Register all unit-specific events directly on the frame with
@@ -2014,6 +2006,7 @@ function PinnedFrames:Reinitialize()
             for j = 1, 8 do
                 local f = self.bossFrames[i][j]
                 if f then
+                    UnregisterStateDriver(f, "visibility")
                     f:UnregisterAllEvents()
                     f:Hide()
                 end
@@ -2374,18 +2367,27 @@ function PinnedFrames:SetBossTestMode(visibleCount)
             local frames = self.bossFrames[setIndex]
             if handler and frames then
                 if visibleCount > 0 then
-                    -- Test mode: swap the handler's state drivers to always
-                    -- yes/no so we can control visibility without a real boss
+                    -- Test mode: swap BOTH the frame visibility state driver
+                    -- AND the handler's reposition-trigger state driver to
+                    -- use always-true/always-false conditions so we can
+                    -- control visibility without a real boss.
                     for i = 1, 8 do
+                        local f = frames[i]
                         if i <= visibleCount then
+                            RegisterStateDriver(f, "visibility", "[@player,exists]show;hide")
                             RegisterStateDriver(handler, "boss" .. i, "[@player,exists]yes;no")
                         else
+                            RegisterStateDriver(f, "visibility", "[@nonexistent]show;hide")
                             RegisterStateDriver(handler, "boss" .. i, "[@nonexistent]yes;no")
                         end
                     end
                 else
-                    -- Test mode off: restore the real conditions
+                    -- Test mode off: restore real conditions on both drivers
                     for i = 1, 8 do
+                        local f = frames[i]
+                        if f then
+                            RegisterStateDriver(f, "visibility", "[@boss" .. i .. ",help]show;hide")
+                        end
                         RegisterStateDriver(handler, "boss" .. i, "[@boss" .. i .. ",help]yes;no")
                     end
                 end
