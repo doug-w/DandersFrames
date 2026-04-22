@@ -2339,6 +2339,63 @@ function PinnedFrames:Test()
     print("|cFF00FFFF[DF Pinned]|r Run /dfpinned info to see details")
 end
 
+-- Test mode for boss frames: force N boss frames visible so the secure
+-- positioning can be verified without being in an encounter. Runs out of
+-- combat only (needs to unregister/re-register state drivers). Passing
+-- nil/0/"off" exits test mode and restores the normal `[@bossN,help]` drivers.
+function PinnedFrames:SetBossTestMode(visibleCount)
+    if InCombatLockdown() then
+        print("|cFF00FFFF[DF Pinned]|r Boss test mode cannot toggle during combat")
+        return
+    end
+
+    visibleCount = tonumber(visibleCount) or 0
+    if visibleCount < 0 then visibleCount = 0 end
+    if visibleCount > 8 then visibleCount = 8 end
+
+    self.bossTestMode = visibleCount > 0
+    self.bossTestCount = visibleCount
+
+    local anyToggled = false
+    for setIndex = 1, 2 do
+        local set = GetSetDB(setIndex)
+        if set and set.enabled and IsBossSet(set) then
+            local frames = self.bossFrames[setIndex]
+            if frames then
+                for i = 1, 8 do
+                    local f = frames[i]
+                    if f then
+                        if visibleCount > 0 then
+                            -- Test mode on: take over visibility manually
+                            UnregisterStateDriver(f, "visibility")
+                            if i <= visibleCount then
+                                f:Show()
+                            else
+                                f:Hide()
+                            end
+                        else
+                            -- Test mode off: restore normal state driver
+                            RegisterStateDriver(f, "visibility", "[@boss" .. i .. ",help]show;hide")
+                        end
+                    end
+                end
+                -- Trigger the secure reposition snippet once so visible
+                -- frames compact to the set anchor immediately
+                self:TriggerBossReposition(setIndex)
+                anyToggled = true
+            end
+        end
+    end
+
+    if not anyToggled then
+        print("|cFF00FFFF[DF Pinned]|r No enabled boss-mode sets found. Enable a pinned set and set Frame Type to 'Friendly Boss NPCs' first.")
+    elseif visibleCount > 0 then
+        print(format("|cFF00FFFF[DF Pinned]|r Boss test mode ON: showing %d boss frames. Run '/dfpinned bosstest off' to exit.", visibleCount))
+    else
+        print("|cFF00FFFF[DF Pinned]|r Boss test mode OFF: restored real state drivers")
+    end
+end
+
 -- Slash command for debug
 SLASH_DFPINNED1 = "/dfpinned"
 SlashCmdList["DFPINNED"] = function(msg)
@@ -2352,11 +2409,20 @@ SlashCmdList["DFPINNED"] = function(msg)
         print("|cFF00FFFF[DF Pinned]|r Reinitialized")
     elseif msg == "test" then
         PinnedFrames:Test()
+    elseif msg and msg:match("^bosstest") then
+        -- "/dfpinned bosstest 3" or "/dfpinned bosstest off"
+        local arg = msg:match("^bosstest%s+(%S+)")
+        if arg == "off" or arg == "0" or arg == nil then
+            PinnedFrames:SetBossTestMode(0)
+        else
+            PinnedFrames:SetBossTestMode(tonumber(arg) or 0)
+        end
     else
         print("|cFF00FFFF[DF Pinned]|r Commands:")
         print("  debug - Toggle debug output")
-        print("  info - Show detailed debug info")  
+        print("  info - Show detailed debug info")
         print("  test - Add player to set 1 and enable")
+        print("  bosstest <N> - Force N boss frames visible to test secure positioning (1-8, 'off' to exit)")
         print("  reinit - Reinitialize frames")
     end
 end
