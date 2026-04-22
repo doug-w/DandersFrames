@@ -18,6 +18,7 @@
 * **Friendly Boss NPC Frames** — Aura Designer indicators now apply correctly when a boss slot is reassigned to a new friendly NPC mid-encounter (previously buffs briefly showed in the standard buff row instead)
 * **Friendly Boss NPC Frames** — out-of-range fading now works on boss frames (boss units don't fire the roster range event, so range is now tracked via the polling loop)
 * **Friendly Boss NPC Frames** — health, power, name, absorb, heal prediction, and aura updates now apply reliably. Boss frames now register their own unit events directly (`UNIT_HEALTH`, `UNIT_POWER_UPDATE`, `UNIT_AURA`, `UNIT_NAME_UPDATE`, `UNIT_FACTION`, `UNIT_ABSORB_AMOUNT_CHANGED`, `UNIT_HEAL_ABSORB_AMOUNT_CHANGED`, `UNIT_HEAL_PREDICTION`, etc.) rather than depending on the roster event dispatcher, which was designed for stable party/raid units and kept missing the ephemeral boss unit tokens. This follows the same pattern ElvUI uses for its boss frames.
+* **Targeted List** — when a cast is interrupted, the bar now snaps to full (yellow) during the interrupted flash instead of continuing to fill. `SetTimerDuration` hands fill animation to the StatusBar engine, which kept ticking even after the cast stopped; the render loop only touched alpha and color for fading bars, so the fill kept growing.
 
 ### Internal
 

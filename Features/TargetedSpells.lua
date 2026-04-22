@@ -5180,6 +5180,12 @@ local function TargetedList_Render()
                 local pct = 1 - math.min(1, math.max(0, elapsed / dur))
                 bar:SetAlpha(pct)
                 if rec.wasInterrupted then
+                    -- Snap fill to full. SetTimerDuration hands the fill
+                    -- animation to the StatusBar engine, which keeps ticking
+                    -- after the cast stops. SetValue overrides the timer and
+                    -- freezes the bar at the interrupted-flash position.
+                    bar.progress:SetMinMaxValues(0, 1)
+                    bar.progress:SetValue(1)
                     bar.progress:SetStatusBarColor(1, 0.95, 0.2, 1)
                     if bar.interruptText then
                         bar.spellName:Hide()
