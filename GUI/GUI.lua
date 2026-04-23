@@ -729,6 +729,13 @@ function GUI:CreateSegmentedButtonGroup(parent, options, dbTable, dbKey, callbac
     -- Called on creation and on OnSizeChanged so buttons reflow when the
     -- page stretches or shrinks the container.
     local function Relayout()
+        -- Re-entry guard: OnSizeChanged can fire again when we SetHeight
+        -- below, and we might also be called during a deferred RefreshStates.
+        -- Without this guard the widget rebuild chain loops infinitely and
+        -- drops the framerate to single digits.
+        if container._relayouting then return end
+        container._relayouting = true
+
         local w = container:GetWidth() or totalWidth
         if w <= 0 then w = totalWidth end
 
@@ -745,12 +752,14 @@ function GUI:CreateSegmentedButtonGroup(parent, options, dbTable, dbKey, callbac
         end
 
         local newHeight = rows * btnHeight + (rows - 1) * gap
-        container:SetHeight(newHeight)
+        if math.abs((container:GetHeight() or 0) - newHeight) > 0.5 then
+            container:SetHeight(newHeight)
+        end
 
-        -- If the row count changed the container's required height, bump
-        -- layoutHeight so the page reserves the right amount of space on
-        -- the next layout pass. Defer the page refresh to the next tick to
-        -- avoid recursing inside OnSizeChanged.
+        -- If the row count changed the required layout space, bump
+        -- layoutHeight so the page reserves the right amount on the next
+        -- layout pass, and defer a layout-only refresh (NOT page:Refresh()
+        -- which would rebuild all widgets and re-enter this path forever).
         local desiredLayoutH = newHeight + 4
         if container.layoutHeight ~= desiredLayoutH then
             container.layoutHeight = desiredLayoutH
@@ -758,10 +767,14 @@ function GUI:CreateSegmentedButtonGroup(parent, options, dbTable, dbKey, callbac
                 container._relayoutPending = true
                 C_Timer.After(0, function()
                     container._relayoutPending = false
-                    if GUI.RefreshCurrentPage then GUI:RefreshCurrentPage() end
+                    if parent and parent.RefreshStates then
+                        parent:RefreshStates()
+                    end
                 end)
             end
         end
+
+        container._relayouting = false
     end
     container:SetScript("OnSizeChanged", function() Relayout() end)
 
