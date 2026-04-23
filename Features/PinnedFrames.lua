@@ -1098,20 +1098,14 @@ function PinnedFrames:ApplyLayoutSettings(setIndex)
     if not set then return end
     if InCombatLockdown() then return end
 
-    -- Refresh Test Mode frames regardless of frame type — scale / spacing /
-    -- grow direction changes should update test frames live. We read the
-    -- TEST MODE'S profile set (raid or party) here, not the current one.
-    if self.testModeActive and self.testFrames[setIndex] then
-        local testIsRaid
-        if DF.raidTestMode then testIsRaid = true
-        elseif DF.testMode then testIsRaid = false end
-        if testIsRaid ~= nil then
-            local testSet = GetSetDBForMode(setIndex, testIsRaid)
-            if testSet then
-                self:EnsureTestContainer(setIndex, testSet, testIsRaid)
-                self:ApplyPlayerTestLayout(setIndex, testSet, testIsRaid)
-            end
-        end
+    -- Refresh Test Mode frames regardless of frame type. Cheapest correct
+    -- approach: full Exit+Enter cycle, same as the test count slider uses.
+    -- Settings panel slider drags fire at keyboard-repeat rate, but Exit+Enter
+    -- is lightweight (just shows/hides non-secure frames and re-applies
+    -- layout math — no allocations beyond first use).
+    if self.testModeActive then
+        self:ExitTestMode()
+        self:EnterTestMode()
     end
 
     if IsBossSet(set) then
