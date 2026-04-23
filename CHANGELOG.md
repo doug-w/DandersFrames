@@ -32,6 +32,7 @@
 * (Friendly Boss NPC Frames) Out-of-range fading now works on boss frames
 * (Friendly Boss NPC Frames) Fix health, power, name, absorb, heal prediction, and aura updates not applying reliably
 * (Friendly Boss NPC Frames) Fix Aura Designer indicators from a previous boss lingering on a slot after it's assigned to a new NPC
+* (Friendly Boss NPC Frames) Reduce race conditions where a boss frame intermittently fails to appear on spawn
 * (Pinned Frames) Fix stale background, border, and label from the real pinned container showing behind test frames when Test Mode matches the current group mode
 * (Pinned Frames) The set label now appears above test frames in all cases, including cross-mode previews (e.g. raid test mode while in a party)
 * (Targeted List) Cast bar now snaps to full yellow on interrupt instead of continuing to fill
