@@ -1147,6 +1147,13 @@ DF.PartyDefaults = {
     dispelNameText = false,
     dispellableHighlight = true,
 
+    -- Dispel overlay source selector (Phase 1 UI uses bridge to old toggles)
+    -- Values: "off" | "dandersframes" | "blizzard" | "both"
+    dispelOverlaySource = "both",
+    -- Unified "Show Overlay For" shared across all sources.
+    -- Values: 1 = Dispellable By Me, 2 = All Dispellable (Blizzard convention)
+    dispelOverlayDispelType = 2,
+
     -- External Defensive
     externalDefAnchor = "CENTER",
     externalDefBorderColor = {r = 0, g = 0.8, b = 0, a = 1},
@@ -2455,6 +2462,13 @@ DF.RaidDefaults = {
     dispelShowPoison = true,
     dispelNameText = false,
     dispellableHighlight = true,
+
+    -- Dispel overlay source selector (Phase 1 UI uses bridge to old toggles)
+    -- Values: "off" | "dandersframes" | "blizzard" | "both"
+    dispelOverlaySource = "both",
+    -- Unified "Show Overlay For" shared across all sources.
+    -- Values: 1 = Dispellable By Me, 2 = All Dispellable (Blizzard convention)
+    dispelOverlayDispelType = 2,
 
     -- External Defensive
     externalDefAnchor = "CENTER",

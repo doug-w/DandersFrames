@@ -5290,60 +5290,10 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         Add(overlayGroup, nil, 2)
         end -- not IS_CONTAINER_SUPPORTED
 
-        if IS_CONTAINER_SUPPORTED then
-        -- ===== CONTAINER DISPEL OVERLAY GROUP (Column 2, 12.0.5+ only) =====
-        local containerGroup = GUI:CreateSettingsGroup(self.child, 280)
-        containerGroup:AddWidget(GUI:CreateHeader(self.child, L["Private Aura Dispel Overlay"]), 40)
-
-        -- Warning notice
-        local noticeText = containerGroup:AddWidget(GUI:CreateLabel(self.child, "|cFFFF4444Note:|r " .. L["This overlay is rendered by Blizzard and has limited customisation. It is not the same as the Dispel Overlay tab."], 260), 50)
-
-        -- Enable checkbox
-        local containerEnable = containerGroup:AddWidget(GUI:CreateCheckbox(self.child, L["Enable Dispel Overlay"], db, "bossDebuffsContainerOverlayEnabled", function()
-            if DF.PreviewPrivateAuraAnchors then DF:PreviewPrivateAuraAnchors() end
-            GUI:RefreshCurrentPage()
-        end), 30)
-
-        local function HideContainerOverlayOptions(d)
-            return not d.bossDebuffsEnabled or not d.bossDebuffsContainerOverlayEnabled
-        end
-
-        -- Show Overlay For dropdown
-        local dispelModeOptions = {
-            [1] = L["Dispellable By Me"],
-            [2] = L["All Dispellable"],
-        }
-        local containerDispelMode = containerGroup:AddWidget(GUI:CreateDropdown(self.child, L["Show Overlay For"], dispelModeOptions, db, "bossDebuffsContainerOverlayDispelMode", function()
-            if DF.PreviewPrivateAuraAnchors then DF:PreviewPrivateAuraAnchors() end
-        end), 55)
-        containerDispelMode.hideOn = HideContainerOverlayOptions
-
-        -- Gradient Direction dropdown
-        local gradientDirOptions = {
-            [0] = L["Top Edge"],
-            [1] = L["Bottom Edge"],
-            [2] = L["Left Edge"],
-        }
-        local containerGradientDir = containerGroup:AddWidget(GUI:CreateDropdown(self.child, L["Gradient Direction"], gradientDirOptions, db, "bossDebuffsContainerOverlayGradientDir", function()
-            if DF.PreviewPrivateAuraAnchors then DF:PreviewPrivateAuraAnchors() end
-        end), 55)
-        containerGradientDir.hideOn = HideContainerOverlayOptions
-        local gradientNote = containerGroup:AddWidget(GUI:CreateLabel(self.child, "|cFF888888" .. L["Right Edge is not available in the Blizzard API."] .. "|r", 260), 20)
-        gradientNote.hideOn = HideContainerOverlayOptions
-
-        -- Overlay Alpha slider
-        local containerAlpha = containerGroup:AddWidget(GUI:CreateSlider(self.child, L["Alpha"], 0.1, 1.0, 0.05, db, "bossDebuffsContainerOverlayAlpha", function()
-            if DF.IterateAllFrames then
-                DF:IterateAllFrames(function(f)
-                    if DF.UpdateContainerOverlaySettings then DF:UpdateContainerOverlaySettings(f) end
-                end)
-            end
-        end), 40)
-        containerAlpha.hideOn = HideContainerOverlayOptions
-
-        containerGroup.hideOn = HideBossDebuffOptions
-        Add(containerGroup, nil, 2)
-        end -- IS_CONTAINER_SUPPORTED
+        -- Private Aura Dispel Overlay settings moved to the Dispel Overlay tab
+        -- under the "Blizzard" source. The container's enable state and options
+        -- are now driven by dispelOverlaySource and the unified dispel-type
+        -- dropdown. This subsection is intentionally left empty.
 
         -- See Also links
         AddSpace(20, "both")
@@ -7153,35 +7103,123 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
     BuildPage(pageDispel, function(self, db, Add, AddSpace, AddSyncPoint)
         -- Copy button at top
         Add(CreateCopyButton(self.child, {"dispel"}, L["Dispel Overlay"], "auras_dispel"), 25, 2)
-        
+
         AddSpace(10, "both")
-        
-        local function HideDispelOptions(d)
-            return not d.dispelOverlayEnabled
+
+        -- Phase 1 bridge: reflect legacy toggles into the new source selector
+        -- and the unified dispel-type selector, so the UI and stored state
+        -- stay consistent without requiring a backend rewire yet. Dropdown
+        -- onChange callbacks write the translated values back to the legacy
+        -- keys so the rest of the addon continues to work unchanged.
+        do
+            local dfOn = db.dispelOverlayEnabled and true or false
+            local blizOn = db.bossDebuffsContainerOverlayEnabled and true or false
+            if dfOn and blizOn then
+                db.dispelOverlaySource = "both"
+            elseif dfOn then
+                db.dispelOverlaySource = "dandersframes"
+            elseif blizOn then
+                db.dispelOverlaySource = "blizzard"
+            else
+                db.dispelOverlaySource = "off"
+            end
+            -- Reflect dispel-type from legacy _blizzDispelIndicator (1=All, 2=ByMe)
+            -- into the new dispelOverlayDispelType (1=ByMe, 2=All — Blizzard convention).
+            local legacyInd = DF.db.party._blizzDispelIndicator or 1
+            db.dispelOverlayDispelType = (legacyInd == 2) and 1 or 2
         end
-        
+
+        local function HideIfSourceOff(d)
+            return d.dispelOverlaySource == "off"
+        end
+        local function HideIfNotDF(d)
+            local s = d.dispelOverlaySource
+            return s ~= "dandersframes" and s ~= "both"
+        end
+        local function HideIfNotBlizzard(d)
+            local s = d.dispelOverlaySource
+            return s ~= "blizzard" and s ~= "both"
+        end
+        -- Kept for back-compat inside this function — now an alias for HideIfNotDF.
+        local HideDispelOptions = HideIfNotDF
+
         local function InvalidateCurves()
             if DF.InvalidateDispelColorCurve then DF:InvalidateDispelColorCurve() end
             if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
         end
-        
+
+        -- Bridge writer: translate dispelOverlaySource to legacy enable toggles.
+        local function ApplySourceBridge()
+            local s = db.dispelOverlaySource or "both"
+            local dfOn = (s == "dandersframes") or (s == "both")
+            local blizOn = (s == "blizzard") or (s == "both")
+            db.dispelOverlayEnabled = dfOn
+            db.bossDebuffsContainerOverlayEnabled = blizOn
+            if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
+            -- UpdateContainerOverlaySettings is no-op on frames whose wrapper
+            -- doesn't exist yet (first-time enable). PreviewPrivateAuraAnchors
+            -- does a full refresh — creates the wrapper + anchor as needed,
+            -- or tears them down when disabled.
+            if DF.PreviewPrivateAuraAnchors then
+                DF:PreviewPrivateAuraAnchors()
+            elseif DF.UpdateContainerOverlaySettings and DF.IterateAllFrames then
+                DF:IterateAllFrames(function(f)
+                    DF:UpdateContainerOverlaySettings(f)
+                end)
+            end
+        end
+        -- Bridge writer: translate dispelOverlayDispelType to legacy keys.
+        local function ApplyDispelTypeBridge()
+            local v = db.dispelOverlayDispelType or 2
+            -- new: 1=ByMe, 2=All → legacy _blizzDispelIndicator: 1=All, 2=ByMe (inverted)
+            DF.db.party._blizzDispelIndicator = (v == 1) and 2 or 1
+            db.bossDebuffsContainerOverlayDispelMode = v
+            InvalidateCurves()
+            if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
+            if DF.UpdateContainerOverlaySettings and DF.IterateAllFrames then
+                DF:IterateAllFrames(function(f)
+                    DF:UpdateContainerOverlaySettings(f)
+                end)
+            end
+        end
+
         -- ===== SETTINGS GROUP (Column 1) =====
         local settingsGroup = GUI:CreateSettingsGroup(self.child, 280)
         settingsGroup:AddWidget(GUI:CreateHeader(self.child, L["Settings"]), 40)
-        settingsGroup:AddWidget(GUI:CreateCheckbox(self.child, L["Enable Dispel Overlay"], db, "dispelOverlayEnabled", function()
+
+        -- Overlay Source dropdown (replaces the Enable checkbox)
+        local sourceOptions = {
+            ["both"]          = L["Hybrid"],
+            ["dandersframes"] = "DandersFrames",
+            ["blizzard"]      = L["Blizzard"],
+            ["off"]           = L["Off"],
+            _order = { "both", "dandersframes", "blizzard", "off" },
+        }
+        settingsGroup:AddWidget(GUI:CreateDropdown(self.child, L["Overlay Source"], sourceOptions, db, "dispelOverlaySource", function()
+            ApplySourceBridge()
             self:RefreshStates()
-            if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
-        end), 30)
-        settingsGroup:AddWidget(GUI:CreateLabel(self.child, L["Shows a colored border/glow when a dispellable debuff is present."], 250), 35)
-        local partyDbDispel = DF.db.party
-        local dispelIndicatorOptions = { [1]= L["All Dispellable"], [2]= L["Dispellable By Me"] }
-        local dispelIndicatorDropdown = settingsGroup:AddWidget(GUI:CreateDropdown(self.child, L["Show Overlay For"], dispelIndicatorOptions, partyDbDispel, "_blizzDispelIndicator", function()
-            local newValue = partyDbDispel._blizzDispelIndicator or 1
-            if newValue == 0 then partyDbDispel._blizzDispelIndicator = 1; newValue = 1 end
-            InvalidateCurves()
-            if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
+            GUI:RefreshCurrentPage()
         end), 55)
-        dispelIndicatorDropdown.hideOn = HideDispelOptions
+
+        -- Per-mode description label — rendered in yellow for prominence.
+        -- One label per source value, toggled via hideOn so only the active
+        -- description occupies vertical space.
+        local YELLOW = "|cFFFFD100"
+        local descBoth = settingsGroup:AddWidget(GUI:CreateLabel(self.child, YELLOW .. L["DandersFrames for normal dispels, Blizzard for boss debuffs (private auras). Recommended."] .. "|r", 260), 50)
+        descBoth.hideOn = function(d) return d.dispelOverlaySource ~= "both" end
+        local descDF = settingsGroup:AddWidget(GUI:CreateLabel(self.child, YELLOW .. L["Full customisation. Does not cover boss debuffs (private auras)."] .. "|r", 260), 50)
+        descDF.hideOn = function(d) return d.dispelOverlaySource ~= "dandersframes" end
+        local descBliz = settingsGroup:AddWidget(GUI:CreateLabel(self.child, YELLOW .. L["Covers boss debuffs (private auras). Limited customisation."] .. "|r", 260), 40)
+        descBliz.hideOn = function(d) return d.dispelOverlaySource ~= "blizzard" end
+        local descOff = settingsGroup:AddWidget(GUI:CreateLabel(self.child, YELLOW .. L["Nothing is displayed for dispellable debuffs."] .. "|r", 260), 30)
+        descOff.hideOn = function(d) return d.dispelOverlaySource ~= "off" end
+
+        -- Unified "Show Overlay For" dropdown — shared by DF and Blizzard overlays
+        local dispelIndicatorOptions = { [1]= L["Dispellable By Me"], [2]= L["All Dispellable"] }
+        local dispelIndicatorDropdown = settingsGroup:AddWidget(GUI:CreateDropdown(self.child, L["Show Overlay For"], dispelIndicatorOptions, db, "dispelOverlayDispelType", function()
+            ApplyDispelTypeBridge()
+        end), 55)
+        dispelIndicatorDropdown.hideOn = HideIfSourceOff
         local showBorder = settingsGroup:AddWidget(GUI:CreateCheckbox(self.child, L["Show Border"], db, "dispelShowBorder", function()
             if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
         end), 30)
@@ -7207,7 +7245,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
         end), 30)
         showIcon.hideOn = HideDispelOptions
-        local HideIconOptions = function(d) return not d.dispelOverlayEnabled or d.dispelShowIcon == false end
+        local HideIconOptions = function(d) return HideIfNotDF(d) or d.dispelShowIcon == false end
         local iconSize = iconGroup:AddWidget(GUI:CreateSlider(self.child, L["Icon Size"], 10, 40, 1, db, "dispelIconSize", function()
             if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
         end, function() DF:LightweightUpdateDispelOverlay() end, true), 55)
@@ -7296,7 +7334,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         local onHealthCheck = gradientGroup:AddWidget(GUI:CreateCheckbox(self.child, L["Show On Current Health Only"], db, "dispelGradientOnCurrentHealth", function()
             if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
         end), 30)
-        onHealthCheck.hideOn = function(d) return not d.dispelOverlayEnabled or d.dispelGradientStyle ~= "FULL" end
+        onHealthCheck.hideOn = function(d) return HideIfNotDF(d) or d.dispelGradientStyle ~= "FULL" end
         local gradSize = gradientGroup:AddWidget(GUI:CreateSlider(self.child, L["Gradient Size"], 0.1, 1.0, 0.1, db, "dispelGradientSize", function()
             if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
         end, function() DF:LightweightUpdateDispelOverlay() end, true), 55)
@@ -7328,10 +7366,50 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         local darkenAlpha = darkenGroup:AddWidget(GUI:CreateSlider(self.child, L["Darken Amount"], 0.1, 1.0, 0.05, db, "dispelGradientDarkenAlpha", function()
             if DF.UpdateAllDispelOverlays then DF:UpdateAllDispelOverlays() end
         end, function() DF:LightweightUpdateDispelOverlay() end, true), 55)
-        darkenAlpha.hideOn = function(d) return not d.dispelOverlayEnabled or not d.dispelGradientDarkenEnabled end
+        darkenAlpha.hideOn = function(d) return HideIfNotDF(d) or not d.dispelGradientDarkenEnabled end
         darkenGroup.hideOn = HideDispelOptions
         Add(darkenGroup, nil, 2)
-        
+
+        -- ===== BLIZZARD OVERLAY GROUP (Column 1) =====
+        -- Only relevant for sources "blizzard" and "both". Settings here drive
+        -- Blizzard's native PrivateAuraAnchorContainer overlay, which has
+        -- limited customisation but covers boss debuffs (private auras).
+        local CLIENT_VERSION = select(4, GetBuildInfo())
+        local IS_CONTAINER_SUPPORTED = CLIENT_VERSION >= 120005
+        if IS_CONTAINER_SUPPORTED then
+            local blizGroup = GUI:CreateSettingsGroup(self.child, 280)
+            blizGroup:AddWidget(GUI:CreateHeader(self.child, L["Blizzard"]), 40)
+            blizGroup:AddWidget(GUI:CreateLabel(self.child, "|cFFFF4444Note:|r " .. L["This overlay is rendered by Blizzard and has limited customisation. It is not the same as the Dispel Overlay tab."], 260), 60)
+
+            local gradientDirOptions = {
+                [0] = L["Top Edge"],
+                [1] = L["Bottom Edge"],
+                [2] = L["Left Edge"],
+            }
+            local blizGradientDir = blizGroup:AddWidget(GUI:CreateDropdown(self.child, L["Gradient Direction"], gradientDirOptions, db, "bossDebuffsContainerOverlayGradientDir", function()
+                if DF.IterateAllFrames then
+                    DF:IterateAllFrames(function(f)
+                        if DF.UpdateContainerOverlaySettings then DF:UpdateContainerOverlaySettings(f) end
+                    end)
+                end
+            end), 55)
+            blizGradientDir.hideOn = HideIfNotBlizzard
+            local gradientNote = blizGroup:AddWidget(GUI:CreateLabel(self.child, "|cFF888888" .. L["Right Edge is not available in the Blizzard API."] .. "|r", 260), 20)
+            gradientNote.hideOn = HideIfNotBlizzard
+
+            local blizAlpha = blizGroup:AddWidget(GUI:CreateSlider(self.child, L["Alpha"], 0.1, 1.0, 0.05, db, "bossDebuffsContainerOverlayAlpha", function()
+                if DF.IterateAllFrames then
+                    DF:IterateAllFrames(function(f)
+                        if DF.UpdateContainerOverlaySettings then DF:UpdateContainerOverlaySettings(f) end
+                    end)
+                end
+            end), 40)
+            blizAlpha.hideOn = HideIfNotBlizzard
+
+            blizGroup.hideOn = HideIfNotBlizzard
+            Add(blizGroup, nil, 1)
+        end
+
         -- See Also links
         AddSpace(20, "both")
         Add(GUI:CreateSeeAlso(self.child, {
