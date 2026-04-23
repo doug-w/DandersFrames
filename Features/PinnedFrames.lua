@@ -547,16 +547,16 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
         end
     ]])
 
-    -- Per-boss state drivers on the handler. The _onstate snippet just
-    -- runs the reposition snippet; Show/Hide is handled by each boss
-    -- frame's own "visibility" state driver (see CreateBossFrames).
-    for i = 1, 8 do
-        local stateName = "boss" .. i
-        handler:SetAttribute("_onstate-" .. stateName, [[
-            self:RunAttribute("repositionBossFrames")
-        ]])
-        RegisterStateDriver(handler, stateName, "[@boss" .. i .. ",help]yes;no")
-    end
+    -- Invoked by each boss frame's SecureHandlerShowHideTemplate helper
+    -- when the frame's visibility state driver flips. For Phase A we simply
+    -- re-run the existing compaction snippet; Phase B replaces this with
+    -- slot-allocator logic.
+    handler:SetAttribute("onBossShow", [[
+        self:RunAttribute("repositionBossFrames")
+    ]])
+    handler:SetAttribute("onBossHide", [[
+        self:RunAttribute("repositionBossFrames")
+    ]])
 
     self.bossHandlers[setIndex] = handler
 
@@ -751,6 +751,28 @@ function PinnedFrames:CreateBossFrames(setIndex, container)
             self.dfAD_activeInstanceIDs = nil
         end)
 
+        -- Secure helper that fires _onshow/_onhide inside the restricted
+        -- environment whenever this boss frame's visibility state driver
+        -- flips. Lets us run slot-allocator/reposition work (which calls
+        -- SetPoint on SecureUnitButtonTemplate frames) safely in combat.
+        local helper = CreateFrame("Frame", nil, frame, "SecureHandlerShowHideTemplate")
+        helper:SetAttribute("bossIndex", i)
+        helper:SetAttribute("_onshow", [[
+            local h = self:GetFrameRef("bossHandler")
+            if h then
+                self:RunFor(h, h:GetAttribute("onBossShow"),
+                    self:GetAttribute("bossIndex"))
+            end
+        ]])
+        helper:SetAttribute("_onhide", [[
+            local h = self:GetFrameRef("bossHandler")
+            if h then
+                self:RunFor(h, h:GetAttribute("onBossHide"),
+                    self:GetAttribute("bossIndex"))
+            end
+        ]])
+        frame.bossHelper = helper
+
         -- Register with click-casting system
         if ClickCastFrames then
             ClickCastFrames[frame] = true
@@ -764,6 +786,17 @@ function PinnedFrames:CreateBossFrames(setIndex, container)
 
     -- Secure handler that repositions these frames compactly, even in combat
     self:CreateBossSecureHandler(setIndex, container, frames)
+
+    -- Wire each helper's bossHandler frame ref now that the handler exists.
+    local handler = self.bossHandlers[setIndex]
+    if handler then
+        for i = 1, 8 do
+            local f = frames[i]
+            if f and f.bossHelper then
+                SecureHandlerSetFrameRef(f.bossHelper, "bossHandler", handler)
+            end
+        end
+    end
 
     DF:Debug("PINNED", "Set %d created 8 boss frames", setIndex)
 end
@@ -1711,10 +1744,6 @@ function PinnedFrames:Reinitialize()
     -- Clean up old frames
     for i = 1, 2 do
         if self.bossHandlers[i] then
-            -- Unregister the handler's per-boss state drivers
-            for j = 1, 8 do
-                UnregisterStateDriver(self.bossHandlers[i], "boss" .. j)
-            end
             self.bossHandlers[i]:Hide()
             self.bossHandlers[i] = nil
         end
@@ -2630,9 +2659,8 @@ function PinnedFrames:SetBossTestMode(visibleCount)
     for setIndex = 1, 2 do
         local set = GetSetDB(setIndex)
         if set and set.enabled and IsBossSet(set) then
-            local handler = self.bossHandlers[setIndex]
             local frames = self.bossFrames[setIndex]
-            if handler and frames then
+            if frames then
                 if isDyn then
                     -- Modifier-driven dynamic test: lets you add/remove frames
                     -- with modifier keys, IN OR OUT OF COMBAT. State drivers
@@ -2652,22 +2680,11 @@ function PinnedFrames:SetBossTestMode(visibleCount)
                         [7] = "[mod:alt]show;hide",
                         [8] = "[mod:alt]show;hide",
                     }
-                    local yesNoConditions = {
-                        [1] = "yes",
-                        [2] = "[mod:shift]yes;no",
-                        [3] = "[mod:shift]yes;no",
-                        [4] = "[mod:ctrl]yes;no",
-                        [5] = "[mod:ctrl]yes;no",
-                        [6] = "[mod:alt]yes;no",
-                        [7] = "[mod:alt]yes;no",
-                        [8] = "[mod:alt]yes;no",
-                    }
                     for i = 1, 8 do
                         local f = frames[i]
                         if f then
                             RegisterStateDriver(f, "visibility", conditions[i])
                         end
-                        RegisterStateDriver(handler, "boss" .. i, yesNoConditions[i])
                     end
                 elseif visibleCount > 0 then
                     -- Fixed-count test: literal state values, no macro eval.
@@ -2677,20 +2694,17 @@ function PinnedFrames:SetBossTestMode(visibleCount)
                         local f = frames[i]
                         if i <= visibleCount then
                             RegisterStateDriver(f, "visibility", "show")
-                            RegisterStateDriver(handler, "boss" .. i, "yes")
                         else
                             RegisterStateDriver(f, "visibility", "hide")
-                            RegisterStateDriver(handler, "boss" .. i, "no")
                         end
                     end
                 else
-                    -- Test mode off: restore real conditions on both drivers
+                    -- Test mode off: restore real conditions on the visibility driver
                     for i = 1, 8 do
                         local f = frames[i]
                         if f then
                             RegisterStateDriver(f, "visibility", "[@boss" .. i .. ",help]show;hide")
                         end
-                        RegisterStateDriver(handler, "boss" .. i, "[@boss" .. i .. ",help]yes;no")
                     end
                 end
                 anyToggled = true
