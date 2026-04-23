@@ -18,6 +18,7 @@
 * (Friendly Boss NPC Frames) Frames no longer collapse upward when a boss dies — surviving frames hold their position, and new bosses fill the next free slot. Slot assignments reset when combat ends
 * (Private Aura Dispel Overlay) Overlay no longer covers the frame border, text, and icons
 * (Private Aura Dispel Overlay) Added an Alpha slider to dim the overlay
+* (Dispel Overlay) Section headers now show tags indicating which dispel types each section covers under the current Overlay Source mode
 
 ### Changes
 
