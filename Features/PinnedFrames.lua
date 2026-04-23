@@ -565,6 +565,31 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
         for f in pairs(allocState.frameSlot) do allocState.frameSlot[f] = nil end
     ]])
 
+    -- GUID-swap poll. Midnight 12.0 can silently reassign bossN to a new NPC
+    -- without firing UNIT_TARGETABLE_CHANGED / UNIT_FACTION (especially for
+    -- boss6-8). Poll every 0.25s and refresh any shown frame whose unit GUID
+    -- no longer matches what we cached at OnShow time. Matches Cell's pattern.
+    handler.dfBossGuidElapsed = 0
+    handler:SetScript("OnUpdate", function(self, elapsed)
+        self.dfBossGuidElapsed = (self.dfBossGuidElapsed or 0) + elapsed
+        if self.dfBossGuidElapsed < 0.25 then return end
+        self.dfBossGuidElapsed = 0
+
+        local frames = PinnedFrames.bossFrames[setIndex]
+        if not frames then return end
+        for i = 1, 8 do
+            local f = frames[i]
+            if f and f:IsShown() and f.unit then
+                local guid = UnitGUID(f.unit)
+                if guid and guid ~= f.dfLastBossGUID then
+                    f.dfLastBossGUID = guid
+                    if DF.ScanUnitFull then DF:ScanUnitFull(f.unit) end
+                    if DF.FullFrameRefresh then DF:FullFrameRefresh(f) end
+                end
+            end
+        end
+    end)
+
     self.bossHandlers[setIndex] = handler
 
     DF:Debug("PINNED", "Set %d created secure position handler", setIndex)
@@ -752,6 +777,7 @@ function PinnedFrames:CreateBossFrames(setIndex, container)
             if DF.unitFrameMap and self.unit then
                 DF.unitFrameMap[self.unit] = self
                 self.dfEventsEnabled = true
+                self.dfLastBossGUID = UnitGUID(self.unit)
             end
             C_Timer.After(0.1, function()
                 if self and self.unit and self:IsVisible() then
@@ -759,6 +785,7 @@ function PinnedFrames:CreateBossFrames(setIndex, container)
                     if DF.ScanUnitFull then DF:ScanUnitFull(self.unit) end
                     -- Full refresh ensures Aura Designer BeginFrame/EnsureFrameState runs
                     if DF.FullFrameRefresh then DF:FullFrameRefresh(self) end
+                    self.dfLastBossGUID = UnitGUID(self.unit)
                 end
             end)
         end)
@@ -787,6 +814,7 @@ function PinnedFrames:CreateBossFrames(setIndex, container)
             self.dfAD_bars = nil
             self.dfAD_configVersion = nil
             self.dfAD_activeInstanceIDs = nil
+            self.dfLastBossGUID = nil
         end)
 
         -- Secure helper that fires _onshow/_onhide inside the restricted
