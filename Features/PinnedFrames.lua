@@ -5,6 +5,8 @@ local addonName, DF = ...
 -- Uses SecureGroupHeaderTemplate with nameList for explicit control
 -- ============================================================
 
+local format = string.format
+
 local PinnedFrames = {}
 DF.PinnedFrames = PinnedFrames
 
@@ -498,64 +500,69 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
         end
     end
 
-    -- Reposition snippet: compacts visible boss frames to the set anchor.
-    -- Frames are anchored to `self` (the handler), which fills the container
-    -- exactly, so anchoring to the handler is equivalent to anchoring to the
-    -- container for positioning purposes.
-    handler:SetAttribute("repositionBossFrames", [[
-        local frameWidth = tonumber(self:GetAttribute("frameWidth")) or 120
-        local frameHeight = tonumber(self:GetAttribute("frameHeight")) or 50
-        local hSpacing = tonumber(self:GetAttribute("hSpacing")) or 2
-        local vSpacing = tonumber(self:GetAttribute("vSpacing")) or 2
-        local unitsPerRow = tonumber(self:GetAttribute("unitsPerRow")) or 5
-        local horizontal = self:GetAttribute("horizontal") == "true"
-        local anchor = self:GetAttribute("anchor") or "TOPLEFT"
-        local frameAnchor = self:GetAttribute("frameAnchor") or "START"
-        local columnAnchor = self:GetAttribute("columnAnchor") or "START"
-
-        -- Walk boss1..boss8 in order; collect currently-visible frames
-        local visibleFrames = newtable()
-        local visibleCount = 0
-        for i = 1, 8 do
-            local f = self:GetFrameRef("boss" .. i)
-            if f and f:IsShown() then
-                visibleCount = visibleCount + 1
-                visibleFrames[visibleCount] = f
-            end
-        end
-
-        -- Position each visible frame by its compacted slot index
-        for slot = 1, visibleCount do
-            local f = visibleFrames[slot]
-            local slotIndex = slot - 1
-            local row = math.floor(slotIndex / unitsPerRow)
-            local col = slotIndex - row * unitsPerRow
-
-            local xStep = frameWidth + hSpacing
-            local yStep = frameHeight + vSpacing
-            local xOff, yOff
-            if horizontal then
-                if frameAnchor == "END" then xOff = -col * xStep else xOff = col * xStep end
-                if columnAnchor == "END" then yOff = row * yStep else yOff = -row * yStep end
-            else
-                if frameAnchor == "END" then yOff = col * yStep else yOff = -col * yStep end
-                if columnAnchor == "END" then xOff = -row * xStep else xOff = row * xStep end
-            end
-
-            f:ClearAllPoints()
-            f:SetPoint(anchor, self, anchor, xOff, yOff)
+    -- Allocator state lives in the handler's restricted env. We stash tables
+    -- on the snippet-scoped `allocState` via the initAllocState snippet;
+    -- subsequent snippets call initAllocState first, which is a no-op after
+    -- the first run. slotUsed is a boolean array keyed 1..8; frameSlot is
+    -- keyed by the boss frame ref (passed in via GetFrameRef).
+    handler:SetAttribute("initAllocState", [[
+        if not allocState then
+            allocState = {
+                slotUsed  = newtable(),
+                frameSlot = newtable(),
+            }
         end
     ]])
 
-    -- Invoked by each boss frame's SecureHandlerShowHideTemplate helper
-    -- when the frame's visibility state driver flips. For Phase A we simply
-    -- re-run the existing compaction snippet; Phase B replaces this with
-    -- slot-allocator logic.
+    -- Pin the bossN frame to the lowest-numbered free slot. Re-uses existing
+    -- assignment if already set. Called from each boss frame's helper _onshow.
     handler:SetAttribute("onBossShow", [[
-        self:RunAttribute("repositionBossFrames")
+        local bossIndex = ...
+        self:RunAttribute("initAllocState")
+        local f = self:GetFrameRef("boss" .. bossIndex)
+        if not f then return end
+
+        local slot = allocState.frameSlot[f]
+        if not slot then
+            for i = 1, 8 do
+                if not allocState.slotUsed[i] then
+                    slot = i
+                    break
+                end
+            end
+            if not slot then return end
+            allocState.slotUsed[slot] = true
+            allocState.frameSlot[f] = slot
+        end
+
+        local anchor = self:GetAttribute("anchor") or "TOPLEFT"
+        local x = tonumber(self:GetAttribute("slot" .. slot .. "x")) or 0
+        local y = tonumber(self:GetAttribute("slot" .. slot .. "y")) or 0
+        f:ClearAllPoints()
+        f:SetPoint(anchor, self, anchor, x, y)
     ]])
+
+    -- Release the slot on hide so future shows can reuse it. Other frames
+    -- keep their slot assignments (no compaction — matches Targeted List rules).
     handler:SetAttribute("onBossHide", [[
-        self:RunAttribute("repositionBossFrames")
+        local bossIndex = ...
+        self:RunAttribute("initAllocState")
+        local f = self:GetFrameRef("boss" .. bossIndex)
+        if not f then return end
+
+        local slot = allocState.frameSlot[f]
+        if slot then
+            allocState.slotUsed[slot] = false
+            allocState.frameSlot[f] = nil
+        end
+    ]])
+
+    -- Invoked from Lua at combat end to wipe all slot assignments. Next
+    -- _onshow cycle starts fresh from slot 1.
+    handler:SetAttribute("resetAllocState", [[
+        self:RunAttribute("initAllocState")
+        for i = 1, 8 do allocState.slotUsed[i] = nil end
+        for f in pairs(allocState.frameSlot) do allocState.frameSlot[f] = nil end
     ]])
 
     self.bossHandlers[setIndex] = handler
@@ -576,25 +583,56 @@ function PinnedFrames:UpdateBossHandlerConfig(setIndex)
     local db = IsInRaid() and DF:GetRaidDB() or DF:GetDB()
     if not db then return end
 
-    handler:SetAttribute("frameWidth", db.frameWidth or 120)
-    handler:SetAttribute("frameHeight", db.frameHeight or 50)
-    handler:SetAttribute("hSpacing", set.horizontalSpacing or 2)
-    handler:SetAttribute("vSpacing", set.verticalSpacing or 2)
-    handler:SetAttribute("unitsPerRow", set.unitsPerRow or 5)
-    handler:SetAttribute("horizontal", tostring(set.growDirection == "HORIZONTAL"))
-    handler:SetAttribute("anchor", GetContainerAnchorPoint(set))
-    handler:SetAttribute("frameAnchor", set.frameAnchor or "START")
-    handler:SetAttribute("columnAnchor", set.columnAnchor or "START")
+    local frameWidth    = db.frameWidth or 120
+    local frameHeight   = db.frameHeight or 50
+    local hSpacing      = set.horizontalSpacing or 2
+    local vSpacing      = set.verticalSpacing or 2
+    local unitsPerRow   = set.unitsPerRow or 5
+    local horizontal    = (set.growDirection == "HORIZONTAL")
+    local frameAnchor   = set.frameAnchor or "START"
+    local columnAnchor  = set.columnAnchor or "START"
+    local anchor        = GetContainerAnchorPoint(set)
+
+    handler:SetAttribute("anchor", anchor)
+
+    -- Size each boss frame to the current mode. SetSize on secure frames is
+    -- combat-restricted; we already bailed above on InCombatLockdown.
+    local frames = self.bossFrames[setIndex]
+    if frames then
+        for i = 1, 8 do
+            local f = frames[i]
+            if f then
+                f:SetSize(frameWidth, frameHeight)
+                f.isRaidFrame = IsInRaid()
+            end
+        end
+    end
+
+    -- Precompute (x, y) for each of the 8 slots. Slot 1 lives at the
+    -- container anchor; subsequent slots offset row-major by (xStep, yStep)
+    -- whose direction is dictated by frameAnchor/columnAnchor.
+    local xStep = frameWidth + hSpacing
+    local yStep = frameHeight + vSpacing
+
+    for slot = 1, 8 do
+        local slotIndex = slot - 1
+        local row = math.floor(slotIndex / unitsPerRow)
+        local col = slotIndex - row * unitsPerRow
+
+        local xOff, yOff
+        if horizontal then
+            if frameAnchor  == "END" then xOff = -col * xStep else xOff =  col * xStep end
+            if columnAnchor == "END" then yOff =  row * yStep else yOff = -row * yStep end
+        else
+            if frameAnchor  == "END" then yOff =  col * yStep else yOff = -col * yStep end
+            if columnAnchor == "END" then xOff = -row * xStep else xOff =  row * xStep end
+        end
+
+        handler:SetAttribute("slot" .. slot .. "x", xOff)
+        handler:SetAttribute("slot" .. slot .. "y", yOff)
+    end
 end
 
--- Run the reposition snippet once from Lua (out of combat).
--- In combat, the state driver triggers it automatically when visibility changes.
-function PinnedFrames:TriggerBossReposition(setIndex)
-    local handler = self.bossHandlers[setIndex]
-    if not handler then return end
-    if InCombatLockdown() then return end
-    handler:Execute([[ self:RunAttribute("repositionBossFrames") ]])
-end
 
 -- Create 8 standalone SecureUnitButtonTemplate frames for a boss-mode set
 -- Parented to the container; unit attributes are hardcoded to boss1..boss8
@@ -1311,36 +1349,15 @@ end
 -- Manually position boss frames in a grid matching the set's layout settings
 -- Called when layout settings change or boss visibility changes
 function PinnedFrames:ApplyBossLayout(setIndex)
-    local frames = self.bossFrames[setIndex]
     local set = GetSetDB(setIndex)
     local container = self.containers[setIndex]
-
-    if not frames or not set or not container then return end
+    if not set or not container then return end
     if InCombatLockdown() then return end
 
-    local db = IsInRaid() and DF:GetRaidDB() or DF:GetDB()
-    if not db then return end
-
-    local frameWidth = db.frameWidth or 120
-    local frameHeight = db.frameHeight or 50
-
-    -- Resize all frames to current mode's dimensions
-    -- (SetSize on secure frames IS combat-restricted, but we already bailed above)
-    for i = 1, 8 do
-        local f = frames[i]
-        if f then
-            f:SetSize(frameWidth, frameHeight)
-            f.isRaidFrame = IsInRaid()
-        end
-    end
-
-    -- Determine corner to anchor from (matches GetContainerAnchorPoint logic)
+    -- Container anchor + scale + saved position handling.
     local anchor = GetContainerAnchorPoint(set)
-
-    -- Apply scale
     container:SetScale(set.scale or 1.0)
 
-    -- Restore/apply saved position
     local pos = set.position
     if pos then
         local savedAnchor = pos.point or anchor
@@ -1359,13 +1376,26 @@ function PinnedFrames:ApplyBossLayout(setIndex)
         pos.point = anchor
     end
 
-    -- Push current layout config into the secure handler's attributes, then
-    -- trigger one reposition. The handler will re-run the reposition snippet
-    -- automatically whenever any boss frame's visibility changes (even in
-    -- combat), so this single call is the only time we need to invoke it
-    -- from Lua.
+    -- Push slot coords + sizes to the secure handler. The allocator snippet
+    -- reads these whenever a boss frame becomes visible.
     self:UpdateBossHandlerConfig(setIndex)
-    self:TriggerBossReposition(setIndex)
+
+    -- Re-anchor any already-visible frames to their current slot coords so
+    -- live layout changes (spacing, size, anchor) take effect immediately
+    -- without waiting for the next Show event.
+    local handler = self.bossHandlers[setIndex]
+    if handler then
+        handler:Execute([[
+            self:RunAttribute("initAllocState")
+            local anchor = self:GetAttribute("anchor") or "TOPLEFT"
+            for f, slot in pairs(allocState.frameSlot) do
+                local x = tonumber(self:GetAttribute("slot" .. slot .. "x")) or 0
+                local y = tonumber(self:GetAttribute("slot" .. slot .. "y")) or 0
+                f:ClearAllPoints()
+                f:SetPoint(anchor, self, anchor, x, y)
+            end
+        ]])
+    end
 end
 
 -- Resize container to fit content
@@ -1922,13 +1952,31 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
             PinnedFrames.pendingVisibilityUpdate = nil
         end
 
-        -- Recompact boss frames — positioning can only happen out of combat
+        -- Reset slot allocator + reapply layout now that we're out of combat.
+        -- Fresh pull starts with all slots free; any frames still visible
+        -- (rare — e.g. we left combat mid-add) re-enter via onBossShow.
         if PinnedFrames.initialized then
             for setIndex = 1, 2 do
                 local set = GetSetDB(setIndex)
                 if set and set.enabled and IsBossSet(set) then
+                    local handler = PinnedFrames.bossHandlers[setIndex]
+                    if handler then
+                        handler:Execute([[ self:RunAttribute("resetAllocState") ]])
+                    end
                     PinnedFrames:ApplyBossLayout(setIndex)
                     PinnedFrames:ResizeContainer(setIndex)
+
+                    -- Re-claim slots for any frames still visible post-reset.
+                    local frames = PinnedFrames.bossFrames[setIndex]
+                    if frames and handler then
+                        for i = 1, 8 do
+                            local f = frames[i]
+                            if f and f:IsShown() then
+                                handler:Execute(format(
+                                    [[ self:RunAttribute("onBossShow", %d) ]], i))
+                            end
+                        end
+                    end
                 end
             end
         end
