@@ -2415,10 +2415,97 @@ local function CreatePlayerTestFrame(setIndex, index, container, isRaidMode, isB
     return frame
 end
 
+-- Build and attach a drag mover to a test container so the user can drag
+-- test frames during test mode. Updates the TEST MODE'S profile set.position
+-- (since the test container uses that profile's saved position).
+local function AttachTestMover(container, setIndex, set, isRaidMode)
+    if container.testMover then
+        -- Mover already created; just refresh its target set/mode reference
+        container.testMover.dfSet = set
+        container.testMover.dfIsRaidMode = isRaidMode
+        container.testMover:Show()
+        return
+    end
+
+    local mover = CreateFrame("Frame", nil, UIParent)
+    mover:SetSize(140, 16)
+    mover:SetFrameStrata("HIGH")
+    mover:SetPoint("BOTTOM", container, "TOP", 0, 2)
+    mover.dfSet = set
+    mover.dfIsRaidMode = isRaidMode
+
+    mover.bg = mover:CreateTexture(nil, "BACKGROUND")
+    mover.bg:SetAllPoints()
+    mover.bg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+
+    local innerBorder = mover:CreateTexture(nil, "BORDER")
+    innerBorder:SetAllPoints()
+    innerBorder:SetColorTexture(0.4, 0.4, 0.6, 1.0)
+    local inner = mover:CreateTexture(nil, "ARTWORK")
+    inner:SetPoint("TOPLEFT", 1, -1)
+    inner:SetPoint("BOTTOMRIGHT", -1, 1)
+    inner:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+
+    mover.text = mover:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    mover.text:SetPoint("CENTER")
+    mover.text:SetText((isRaidMode and "Raid" or "Party") .. " Test — Drag")
+    mover.text:SetTextColor(0.8, 0.8, 1.0)
+
+    mover:EnableMouse(true)
+    mover:RegisterForDrag("LeftButton")
+
+    local startMouseX, startMouseY, startPosX, startPosY
+
+    mover:SetScript("OnDragStart", function(self)
+        local currentSet = self.dfSet
+        if not currentSet then return end
+        local dragAnchor = GetContainerAnchorPoint(currentSet)
+        local uiScale = UIParent:GetEffectiveScale()
+        startMouseX, startMouseY = GetCursorPosition()
+        startMouseX = startMouseX / uiScale
+        startMouseY = startMouseY / uiScale
+        local p = currentSet.position or { x = 0, y = 0 }
+        startPosX = p.x or 0
+        startPosY = p.y or 0
+        self:SetScript("OnUpdate", function()
+            local mx, my = GetCursorPosition()
+            local ps = UIParent:GetEffectiveScale()
+            mx = mx / ps
+            my = my / ps
+            local newX = startPosX + (mx - startMouseX)
+            local newY = startPosY + (my - startMouseY)
+            local s = container:GetScale() or 1
+            container:ClearAllPoints()
+            container:SetPoint(dragAnchor, UIParent, dragAnchor, newX / s, newY / s)
+        end)
+    end)
+
+    mover:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+        if not startMouseX then return end
+        local currentSet = self.dfSet
+        if not currentSet then return end
+        local dragAnchor = GetContainerAnchorPoint(currentSet)
+        local uiScale = UIParent:GetEffectiveScale()
+        local mx, my = GetCursorPosition()
+        mx = mx / uiScale
+        my = my / uiScale
+        local finalX = startPosX + (mx - startMouseX)
+        local finalY = startPosY + (my - startMouseY)
+        currentSet.position = { point = dragAnchor, x = finalX, y = finalY }
+        local s = container:GetScale() or 1
+        container:ClearAllPoints()
+        container:SetPoint(dragAnchor, UIParent, dragAnchor, finalX / s, finalY / s)
+    end)
+
+    container.testMover = mover
+end
+
 -- Ensure the test container for a set exists and is positioned using the
 -- specified mode's profile config for that set (so raid test mode while solo
 -- anchors at the raid-profile's configured pinned position, not at the
 -- party-profile's position). Non-secure frame; can be created in combat.
+-- Also attaches a drag mover so the user can reposition test frames live.
 function PinnedFrames:EnsureTestContainer(setIndex, set, isRaidMode)
     local container = self.testContainers[setIndex]
     if not container then
@@ -2451,6 +2538,8 @@ function PinnedFrames:EnsureTestContainer(setIndex, set, isRaidMode)
         (pos.x or 0) / scale, (pos.y or 0) / scale
     )
     container:Show()
+
+    AttachTestMover(container, setIndex, set, isRaidMode)
     return container
 end
 
@@ -2562,8 +2651,10 @@ function PinnedFrames:HidePlayerTestFrames(setIndex)
             if pool[i] then pool[i]:Hide() end
         end
     end
-    if self.testContainers[setIndex] then
-        self.testContainers[setIndex]:Hide()
+    local container = self.testContainers[setIndex]
+    if container then
+        if container.testMover then container.testMover:Hide() end
+        container:Hide()
     end
 end
 
