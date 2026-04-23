@@ -2151,6 +2151,9 @@ end
 -- TEST MODE'S profile set.position (raid profile when raid test is on).
 -- Themed with GetModeColors so raid test uses orange, party test uses blue.
 local function AttachTestMover(container, set, isRaidMode)
+    -- Mover is hidden when the set is locked (matches real pinned mover behavior)
+    local shouldShow = not set.locked
+
     if container.testMover then
         -- Refresh refs + theme colors in case mode flipped
         container.testMover.dfSet = set
@@ -2161,7 +2164,7 @@ local function AttachTestMover(container, set, isRaidMode)
         container.testMover.inner:SetColorTexture(unpack(colors.moverBg))
         container.testMover.text:SetTextColor(unpack(colors.moverText))
         container.testMover.text:SetText((isRaidMode and "Raid" or "Party") .. " Test — Drag")
-        container.testMover:Show()
+        container.testMover:SetShown(shouldShow)
         return
     end
 
@@ -2237,6 +2240,7 @@ local function AttachTestMover(container, set, isRaidMode)
         container:SetPoint(dragAnchor, UIParent, dragAnchor, finalX / s, finalY / s)
     end)
 
+    mover:SetShown(shouldShow)
     container.testMover = mover
 end
 
@@ -2436,6 +2440,14 @@ function PinnedFrames:EnterTestMode()
             if actualModeMatches and self.headers[setIndex] and not isBossSet then
                 self.headers[setIndex]:Hide()
             end
+            -- Hide the REAL pinned mover when test mode matches — otherwise
+            -- the user sees two movers (real + test) stacked at the same spot.
+            if actualModeMatches then
+                local realContainer = self.containers[setIndex]
+                if realContainer and realContainer.mover then
+                    realContainer.mover:Hide()
+                end
+            end
 
             self:EnsureTestContainer(setIndex, set, isRaidMode)
             self:EnsurePlayerTestFramePool(setIndex, n, isRaidMode, isBossSet)
@@ -2472,6 +2484,13 @@ function PinnedFrames:ExitTestMode()
         local set = GetSetDB(setIndex)
         if set and not IsBossSet(set) and set.enabled and self.headers[setIndex] then
             self.headers[setIndex]:Show()
+        end
+        -- Restore real pinned mover visibility (matches enabled + unlocked)
+        if set and set.enabled then
+            local realContainer = self.containers[setIndex]
+            if realContainer and realContainer.mover then
+                realContainer.mover:SetShown(not set.locked)
+            end
         end
     end
 

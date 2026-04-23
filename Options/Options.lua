@@ -2483,12 +2483,22 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             return GUI.SelectedMode == actualMode
         end
 
+        -- Refresh Test Mode frames if active — enable/lock toggles affect
+        -- mover visibility and whether test frames should render at all.
+        local function RefreshTestModeIfActive()
+            if DF.PinnedFrames.IsTestModeActive and DF.PinnedFrames:IsTestModeActive() then
+                DF.PinnedFrames:ExitTestMode()
+                DF.PinnedFrames:EnterTestMode()
+            end
+        end
+
         settingsGroup:AddWidget(CreateRefreshableCheckbox(self.child, L["Enable"], "enabled", function()
             if not DF.PinnedFrames then return end
             if IsEditingActiveMode() then
                 DF.PinnedFrames:SetEnabled(activeHighlightTab, GetCurrentSet().enabled)
             end
             DF.PinnedFrames:UpdatePreviewSet(activeHighlightTab)
+            RefreshTestModeIfActive()
         end), 28)
         settingsGroup:AddWidget(CreateRefreshableCheckbox(self.child, L["Lock Position"], "locked", function()
             if not DF.PinnedFrames then return end
@@ -2496,6 +2506,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                 DF.PinnedFrames:SetLocked(activeHighlightTab, GetCurrentSet().locked)
             end
             DF.PinnedFrames:UpdatePreviewSet(activeHighlightTab)
+            RefreshTestModeIfActive()
         end), 28)
         settingsGroup:AddWidget(CreateRefreshableCheckbox(self.child, L["Show Label"], "showLabel", function()
             if not DF.PinnedFrames then return end
@@ -2503,6 +2514,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                 DF.PinnedFrames:SetShowLabel(activeHighlightTab, GetCurrentSet().showLabel)
             end
             DF.PinnedFrames:UpdatePreviewSet(activeHighlightTab)
+            RefreshTestModeIfActive()
         end), 28)
 
         -- Reset Position button
