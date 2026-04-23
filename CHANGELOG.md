@@ -5,12 +5,18 @@
 ### New Features
 
 * **Pinned Frames in Test Mode** — Test Mode now fills your enabled pinned sets with fake units so you can design the layout without being in a group. Boss sets show friendly-NPC test units (Fiery Treant, Charred Bramble, etc.); player-mode sets show party/raid test units. A new **Test Count** slider in the Pinned Frames settings chooses how many frames appear (1–8 boss, 1–10 player). Test frames are non-secure mock frames that look identical to live frames — your real pinned setup isn't touched. Raid test mode only shows raid-profile sets, party test mode only shows party-profile sets, and the other mode's frames are never affected.
+* **Dispel Overlay redesign** — Private Aura Dispel Overlay settings have moved to the Dispel Overlay tab under a new **Overlay Source** dropdown with four modes:
+    * **Hybrid** — DandersFrames for normal dispels, Blizzard for boss debuffs (recommended)
+    * **DandersFrames** — full customisation, does not cover boss debuffs
+    * **Blizzard** — covers both normal debuffs and boss debuffs, limited customisation
+    * **Off** — disabled
+    
+    In Hybrid mode the two overlays no longer double up; DandersFrames handles normal dispels while Blizzard picks up boss debuffs only. "Show Overlay For" (Dispellable By Me / All Dispellable) is now a single unified setting shared by both overlays.
 
 ### Improvements
 
 * (Private Aura Dispel Overlay) Overlay no longer covers the frame border, text, and icons
 * (Private Aura Dispel Overlay) Added an Alpha slider to dim the overlay
-* (Private Aura Dispel Overlay) No longer doubles up with DF's own Dispel Overlay for normal debuffs — the Blizzard overlay now only shows when DF's has nothing to show (boss debuffs)
 
 ### Changes
 
