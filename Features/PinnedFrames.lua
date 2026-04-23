@@ -1098,28 +1098,26 @@ function PinnedFrames:ApplyLayoutSettings(setIndex)
     if not set then return end
     if InCombatLockdown() then return end
 
+    -- Refresh Test Mode frames regardless of frame type — scale / spacing /
+    -- grow direction changes should update test frames live. We read the
+    -- TEST MODE'S profile set (raid or party) here, not the current one.
+    if self.testModeActive and self.testFrames[setIndex] then
+        local testIsRaid
+        if DF.raidTestMode then testIsRaid = true
+        elseif DF.testMode then testIsRaid = false end
+        if testIsRaid ~= nil then
+            local testSet = GetSetDBForMode(setIndex, testIsRaid)
+            if testSet then
+                self:EnsureTestContainer(setIndex, testSet, testIsRaid)
+                self:ApplyPlayerTestLayout(setIndex, testSet, testIsRaid)
+            end
+        end
+    end
+
     if IsBossSet(set) then
         self:ApplyBossLayout(setIndex)
         self:ResizeContainer(setIndex)
         return
-    end
-
-    -- Player-mode test layout mirrors settings even though the header is
-    -- hidden. Re-read the set config from whichever mode(s) are in test.
-    if self.testModeActive and self.testFrames[setIndex] then
-        if DF.raidTestMode then
-            local raidSet = GetSetDBForMode(setIndex, true)
-            if raidSet then
-                self:EnsureTestContainer(setIndex, raidSet, true)
-                self:ApplyPlayerTestLayout(setIndex, raidSet, true)
-            end
-        elseif DF.testMode then
-            local partySet = GetSetDBForMode(setIndex, false)
-            if partySet then
-                self:EnsureTestContainer(setIndex, partySet, false)
-                self:ApplyPlayerTestLayout(setIndex, partySet, false)
-            end
-        end
     end
 
     local header = self.headers[setIndex]
@@ -1725,6 +1723,9 @@ function PinnedFrames:Reinitialize()
             self.testFrames[i] = nil
         end
         if self.testContainers[i] then
+            if self.testContainers[i].testMover then
+                self.testContainers[i].testMover:Hide()
+            end
             self.testContainers[i]:Hide()
             self.testContainers[i] = nil
         end
@@ -1758,6 +1759,14 @@ function PinnedFrames:Reinitialize()
     
     self.initialized = false
     self:Initialize()
+
+    -- If Test Mode was active before Reinitialize (e.g. user changed
+    -- frame type in the settings panel while test mode was on), re-enter
+    -- it so fresh test frames are rendered for the new frame type.
+    if self.testModeActive then
+        self.testModeActive = false  -- ExitTestMode is a no-op in this state
+        self:EnterTestMode()
+    end
 end
 
 -- Refresh all child frames (calls FullFrameRefresh on each)
