@@ -18,6 +18,17 @@ DandersFrames is a custom party and raid frame addon for World of Warcraft (Reta
 - **Test mode exists** — when suggesting testing, remind that `/df test` or the test mode toggle can be used to simulate party/raid frames without being in a group.
 - **No AI attribution in commits.** Never add `Co-Authored-By` lines, Claude references, or any AI-related mentions in commit messages or code comments.
 - **`CHANGELOG.md` is the single source of truth for changelogs.** Always add new changelog entries to `CHANGELOG.md` — never edit `Changelog.lua` directly. CI generates `Changelog.lua` from `CHANGELOG.md` at build time via `generate_changelog.sh`. To update the local in-game changelog for testing, run `bash generate_changelog.sh` then restore side effects with `git checkout -- CHANGELOG.md DandersFrames.toc` (the script modifies these as a side effect). The `/bump-version` skill should add entries to `CHANGELOG.md`.
+- **Changelog style: short, sweet, non-technical.** Entries are read by end users in-game. Keep them brief and describe WHAT changed, not HOW.
+    - **Default length:** one sentence, ideally under ~20 words. Phrase as the user-visible outcome (what they'll notice).
+    - **Never include:** file names, line numbers, function names, API names, event names, secure-template internals, attribute strings, code snippets, commit-message-style explanations of the implementation, or references to how other addons solve the same problem. Don't mention other addons (ElvUI, Grid2, Blizzard internal templates, etc.) unless the user specifically asks.
+    - **Allowed to be longer and more detailed:**
+        - **New features** — describe what users can do with the feature and where to find the setting. Two to four sentences is fine.
+        - **Developer-facing changes (DF API)** — external integrations (e.g. `RegisterCallback` events, public API functions other addons depend on) need enough detail for developers to update their code. This is essentially the only case where technical detail belongs.
+    - **Examples:**
+        - ❌ "Fix `attempt to perform boolean test on field 'dfInRange' (a secret boolean value, while execution tainted by 'DandersFrames')` error spam from Range.lua:550."
+        - ✓ "(Range) Fix error spam when range fading is active in combat."
+        - ❌ "Boss frames now register their own unit events directly (`UNIT_HEALTH`, `UNIT_POWER_UPDATE`, `UNIT_AURA`, …). This follows the same pattern ElvUI uses for its boss frames."
+        - ✓ "(Friendly Boss NPC Frames) Fix health, power, name, and absorb updates not applying reliably."
 - **Open bug awareness.** `_Reference/open-bugs.json` is a local cache of all currently triaged confirmed bugs (regenerated daily after the triage agent, or on demand via `/refresh-bugs`). When implementing fixes or features, you may optionally invoke `/check-bugs` to see if your changes touch files listed in open bug reports — useful for catching "this incidentally fixes bug X" moments or spotting bugs close to what you're working on. The release skills (`/release-alpha`, `/release-beta` manual path, `/release-stable`) run `/check-bugs` automatically before tagging so nothing ships without considering whether open bugs are now resolved.
 
 ## File Paths
