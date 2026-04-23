@@ -2340,17 +2340,24 @@ end
 -- positioning can be verified without being in an encounter. Runs out of
 -- combat only (needs to unregister/re-register state drivers). Passing
 -- nil/0/"off" exits test mode and restores the normal `[@bossN,help]` drivers.
+-- Pass visibleCount 1..8 for fixed count, or the string "dyn" for
+-- modifier-driven test (boss1 always, boss2-3 with shift, boss4-5 with
+-- ctrl, boss6-8 with alt — lets you toggle frames in/out of combat to
+-- verify the secure reposition snippet runs correctly).
 function PinnedFrames:SetBossTestMode(visibleCount)
     if InCombatLockdown() then
         print("|cFF00FFFF[DF Pinned]|r Boss test mode cannot toggle during combat")
         return
     end
 
-    visibleCount = tonumber(visibleCount) or 0
-    if visibleCount < 0 then visibleCount = 0 end
-    if visibleCount > 8 then visibleCount = 8 end
+    local isDyn = (visibleCount == "dyn")
+    if not isDyn then
+        visibleCount = tonumber(visibleCount) or 0
+        if visibleCount < 0 then visibleCount = 0 end
+        if visibleCount > 8 then visibleCount = 8 end
+    end
 
-    self.bossTestMode = visibleCount > 0
+    self.bossTestMode = isDyn or (visibleCount > 0)
     self.bossTestCount = visibleCount
 
     local anyToggled = false
@@ -2360,12 +2367,46 @@ function PinnedFrames:SetBossTestMode(visibleCount)
             local handler = self.bossHandlers[setIndex]
             local frames = self.bossFrames[setIndex]
             if handler and frames then
-                if visibleCount > 0 then
-                    -- Test mode: swap BOTH the frame visibility state driver
-                    -- AND the handler's reposition-trigger state driver to
-                    -- literal state values. State driver strings that don't
-                    -- start with `[` are used as the literal state value
-                    -- (no macro condition evaluation).
+                if isDyn then
+                    -- Modifier-driven dynamic test: lets you add/remove frames
+                    -- with modifier keys, IN OR OUT OF COMBAT. State drivers
+                    -- (including mod: conditions) evaluate continuously; when
+                    -- they change, the handler's reposition snippet runs.
+                    --   boss1:       always visible
+                    --   boss2, boss3: visible while holding SHIFT
+                    --   boss4, boss5: visible while holding CTRL
+                    --   boss6, boss7, boss8: visible while holding ALT
+                    local conditions = {
+                        [1] = "show",
+                        [2] = "[mod:shift]show;hide",
+                        [3] = "[mod:shift]show;hide",
+                        [4] = "[mod:ctrl]show;hide",
+                        [5] = "[mod:ctrl]show;hide",
+                        [6] = "[mod:alt]show;hide",
+                        [7] = "[mod:alt]show;hide",
+                        [8] = "[mod:alt]show;hide",
+                    }
+                    local yesNoConditions = {
+                        [1] = "yes",
+                        [2] = "[mod:shift]yes;no",
+                        [3] = "[mod:shift]yes;no",
+                        [4] = "[mod:ctrl]yes;no",
+                        [5] = "[mod:ctrl]yes;no",
+                        [6] = "[mod:alt]yes;no",
+                        [7] = "[mod:alt]yes;no",
+                        [8] = "[mod:alt]yes;no",
+                    }
+                    for i = 1, 8 do
+                        local f = frames[i]
+                        if f then
+                            RegisterStateDriver(f, "visibility", conditions[i])
+                        end
+                        RegisterStateDriver(handler, "boss" .. i, yesNoConditions[i])
+                    end
+                elseif visibleCount > 0 then
+                    -- Fixed-count test: literal state values, no macro eval.
+                    -- State driver strings that don't start with `[` are used
+                    -- as the literal state value.
                     for i = 1, 8 do
                         local f = frames[i]
                         if i <= visibleCount then
@@ -2393,6 +2434,8 @@ function PinnedFrames:SetBossTestMode(visibleCount)
 
     if not anyToggled then
         print("|cFF00FFFF[DF Pinned]|r No enabled boss-mode sets found. Enable a pinned set and set Frame Type to 'Friendly Boss NPCs' first.")
+    elseif isDyn then
+        print("|cFF00FFFF[DF Pinned]|r Boss test mode ON (dynamic): boss1 always; +2,3 with SHIFT; +4,5 with CTRL; +6,7,8 with ALT. Works in combat. Run '/dfpinned bosstest off' to exit.")
     elseif visibleCount > 0 then
         print(format("|cFF00FFFF[DF Pinned]|r Boss test mode ON: showing %d boss frames. Run '/dfpinned bosstest off' to exit.", visibleCount))
     else
@@ -2414,10 +2457,12 @@ SlashCmdList["DFPINNED"] = function(msg)
     elseif msg == "test" then
         PinnedFrames:Test()
     elseif msg and msg:match("^bosstest") then
-        -- "/dfpinned bosstest 3" or "/dfpinned bosstest off"
+        -- "/dfpinned bosstest 3" | "/dfpinned bosstest dyn" | "/dfpinned bosstest off"
         local arg = msg:match("^bosstest%s+(%S+)")
         if arg == "off" or arg == "0" or arg == nil then
             PinnedFrames:SetBossTestMode(0)
+        elseif arg == "dyn" then
+            PinnedFrames:SetBossTestMode("dyn")
         else
             PinnedFrames:SetBossTestMode(tonumber(arg) or 0)
         end
@@ -2426,7 +2471,8 @@ SlashCmdList["DFPINNED"] = function(msg)
         print("  debug - Toggle debug output")
         print("  info - Show detailed debug info")
         print("  test - Add player to set 1 and enable")
-        print("  bosstest <N> - Force N boss frames visible to test secure positioning (1-8, 'off' to exit)")
+        print("  bosstest <N> - Show N boss frames to test secure positioning (1-8, 'off' to exit)")
+        print("  bosstest dyn - Modifier-driven test: boss1 always, +2,3 SHIFT, +4,5 CTRL, +6,7,8 ALT (works in combat)")
         print("  reinit - Reinitialize frames")
     end
 end
