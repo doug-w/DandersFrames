@@ -290,12 +290,12 @@ function GUI:CreateCollapsibleSection(parent, text, defaultExpanded, width)
     if not parent.ThemeListeners then parent.ThemeListeners = {} end
     table.insert(parent.ThemeListeners, section.title)
 
-    -- Optional inline tag — small dim text placed after the title. Useful
-    -- for quick status summaries (e.g. "[Normal Dispels]"). Call
+    -- Optional inline tag — small yellow text placed after the title to
+    -- stand out as a status summary (e.g. "[Normal Dispels]"). Call
     -- section:SetTag(text) at any time; pass nil or empty string to clear.
     section.tag = section:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
     section.tag:SetPoint("LEFT", section.title, "RIGHT", 8, 0)
-    section.tag:SetTextColor(C_TEXT_DIM.r, C_TEXT_DIM.g, C_TEXT_DIM.b, 1)
+    section.tag:SetTextColor(1, 0.82, 0, 1)  -- WoW standard gold/yellow
     section.tag:SetText("")
     section.SetTag = function(self, text)
         if text and text ~= "" then
