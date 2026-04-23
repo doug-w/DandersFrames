@@ -494,6 +494,41 @@ SetupContainerOverlay = function(frame, unit, db)
             DF:DebugError("Container overlay registration FAILED for " .. unit .. ": " .. tostring(anchorID))
         end
     end
+
+    -- Initial visibility sync: if DF's own overlay is already shown for a
+    -- normal dispellable debuff, keep the Blizzard wrapper hidden so they
+    -- don't both render.
+    DF:UpdateContainerOverlayVisibility(frame)
+end
+
+-- ============================================================
+-- CONTAINER OVERLAY VISIBILITY GATE
+-- Blizzard's container overlay (CompactUnitFrameDispelOverlayTemplate)
+-- fires for ANY dispellable debuff, not just private auras — the scan
+-- at PrivateAuraAnchorContainerMixin:ParseAllAuras calls AuraUtil.ForEachAura
+-- for all Harmful/Helpful auras, then feeds them through CheckAddDispel.
+-- There's no attribute to scope it to private-only.
+--
+-- Since DF already renders its own dispel overlay (dfDispelOverlay) for
+-- normal dispellable debuffs via its own logic, showing Blizzard's on top
+-- of that would double up visually.
+--
+-- Strategy: gate the Blizzard wrapper on DF's own overlay's shown state.
+--   * dfDispelOverlay:IsShown() == true  → hide the wrapper (DF wins)
+--   * dfDispelOverlay:IsShown() == false → show the wrapper (Blizzard
+--     catches private auras, which DF's overlay can't see)
+--
+-- dfDispelOverlay:IsShown() is secret-safe: DF's show/hide uses plain
+-- Show()/Hide() calls (never SetShownFromBoolean with a secret bool), so
+-- the shown state is a regular boolean.
+-- ============================================================
+
+function DF:UpdateContainerOverlayVisibility(frame)
+    if not frame then return end
+    local wrapper = frame.containerOverlayFrame
+    if not wrapper then return end
+    local dfOwnShown = frame.dfDispelOverlay and frame.dfDispelOverlay:IsShown()
+    wrapper:SetShown(not dfOwnShown)
 end
 
 function DF:UpdateContainerOverlaySettings(frame)

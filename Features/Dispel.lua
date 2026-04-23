@@ -1400,6 +1400,11 @@ local function HideDispelAndInvalidate(frame)
     end
     RevertDispelNameText(frame)
     frame.dfLastDispelAuraID = nil
+    -- DF's overlay just went hidden — let the Blizzard container wrapper
+    -- show so private-aura dispels still get an overlay.
+    if DF.UpdateContainerOverlayVisibility then
+        DF:UpdateContainerOverlayVisibility(frame)
+    end
 end
 
 function DF:UpdateDispelOverlay(frame)
@@ -1463,6 +1468,9 @@ function DF:UpdateDispelOverlay(frame)
             -- Test mode doesn't use the last-rendered-aura skip — it has
             -- its own lifecycle and can re-render every tick cheaply.
             frame.dfLastDispelAuraID = nil
+            if DF.UpdateContainerOverlayVisibility then
+                DF:UpdateContainerOverlayVisibility(frame)
+            end
         else
             HideDispelAndInvalidate(frame)
         end
@@ -1631,6 +1639,13 @@ function DF:UpdateDispelOverlay(frame)
             print("|cffff0000DF Dispel:|r No dispellable debuffs found")
         end
     end
+
+    -- Gate the Blizzard native dispel overlay: show it only when DF's own
+    -- overlay is hidden, so private auras still get an overlay without
+    -- doubling up for normal dispellable debuffs.
+    if DF.UpdateContainerOverlayVisibility then
+        DF:UpdateContainerOverlayVisibility(frame)
+    end
 end
 
 -- ============================================================
@@ -1653,6 +1668,9 @@ function DF:ClearAllDispelOverlays()
                 HideOverlay(frame.dfDispelOverlay)
             end
             RevertDispelNameText(frame)
+            if DF.UpdateContainerOverlayVisibility then
+                DF:UpdateContainerOverlayVisibility(frame)
+            end
         end
     end
 
