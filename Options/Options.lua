@@ -7209,7 +7209,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         descBoth.hideOn = function(d) return d.dispelOverlaySource ~= "both" end
         local descDF = settingsGroup:AddWidget(GUI:CreateLabel(self.child, YELLOW .. L["Full customisation. Does not cover boss debuffs (private auras)."] .. "|r", 260), 50)
         descDF.hideOn = function(d) return d.dispelOverlaySource ~= "dandersframes" end
-        local descBliz = settingsGroup:AddWidget(GUI:CreateLabel(self.child, YELLOW .. L["Covers boss debuffs (private auras). Limited customisation."] .. "|r", 260), 40)
+        local descBliz = settingsGroup:AddWidget(GUI:CreateLabel(self.child, YELLOW .. L["Covers both normal debuffs and boss debuffs (private auras). Limited customisation."] .. "|r", 260), 50)
         descBliz.hideOn = function(d) return d.dispelOverlaySource ~= "blizzard" end
         local descOff = settingsGroup:AddWidget(GUI:CreateLabel(self.child, YELLOW .. L["Nothing is displayed for dispellable debuffs."] .. "|r", 260), 30)
         descOff.hideOn = function(d) return d.dispelOverlaySource ~= "off" end
