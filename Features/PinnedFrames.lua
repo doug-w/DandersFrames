@@ -501,12 +501,13 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
     -- subsequent snippets call initAllocState first, which is a no-op after
     -- the first run. slotUsed is a boolean array keyed 1..8; frameSlot is
     -- keyed by the boss frame ref (passed in via GetFrameRef).
+    -- Note: table literals (`{}`) are forbidden in restricted env; must use
+    -- newtable() for every table we create.
     handler:SetAttribute("initAllocState", [[
         if not allocState then
-            allocState = {
-                slotUsed  = newtable(),
-                frameSlot = newtable(),
-            }
+            allocState = newtable()
+            allocState.slotUsed = newtable()
+            allocState.frameSlot = newtable()
         end
     ]])
 
