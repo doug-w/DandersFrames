@@ -463,13 +463,16 @@ end
 -- ============================================================
 
 -- Create a SecureHandlerStateTemplate handler for this set's boss frames.
--- The handler owns four allocator snippets (initAllocState, onBossShow,
--- onBossHide, resetAllocState) plus a 0.25s GUID-swap poll. Each boss frame
--- has its own SecureHandlerShowHideTemplate helper child; when the per-frame
+-- The handler owns three allocator snippets (onBossShow, onBossHide,
+-- resetAllocState) plus a 0.25s GUID-swap poll. Each boss frame has its own
+-- SecureHandlerShowHideTemplate helper child; when the per-frame
 -- [@bossN,help]show;hide visibility driver flips, the helper's _onshow/_onhide
 -- run onBossShow/onBossHide on this handler via RunFor, passing bossIndex.
 -- Allocation + SetPoint happens inside the restricted environment, so in-combat
 -- repositioning is legal — unlike Lua-side SetPoint on SecureUnitButtonTemplate.
+-- Allocator state is stored as persistent frame attributes (slotTaken<N> on
+-- the handler, assignedSlot on each boss frame) rather than snippet globals,
+-- because restricted snippets get a fresh env per invocation.
 function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
     if self.bossHandlers[setIndex] then return self.bossHandlers[setIndex] end
     if InCombatLockdown() then return nil end
@@ -496,40 +499,31 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
         end
     end
 
-    -- Allocator state lives in the handler's restricted env. We stash tables
-    -- on the snippet-scoped `allocState` via the initAllocState snippet;
-    -- subsequent snippets call initAllocState first, which is a no-op after
-    -- the first run. slotUsed is a boolean array keyed 1..8; frameSlot is
-    -- keyed by the boss frame ref (passed in via GetFrameRef).
-    -- Note: table literals (`{}`) are forbidden in restricted env; must use
-    -- newtable() for every table we create.
-    handler:SetAttribute("initAllocState", [[
-        if not allocState then
-            allocState = newtable()
-            allocState.slotUsed = newtable()
-            allocState.frameSlot = newtable()
-        end
-    ]])
+    -- Allocator state lives in persistent attributes because restricted-env
+    -- snippets get a fresh environment per invocation, so snippet-scoped
+    -- globals don't survive RunAttribute calls. We use:
+    --   handler attr "slotTaken<N>" (boolean) — which slots are in use
+    --   frame attr   "assignedSlot" (number)  — which slot this frame holds
+    -- Both auto-nil on first read, which correctly means "untaken/unassigned".
 
     -- Pin the bossN frame to the lowest-numbered free slot. Re-uses existing
     -- assignment if already set. Called from each boss frame's helper _onshow.
     handler:SetAttribute("onBossShow", [[
         local bossIndex = ...
-        self:RunAttribute("initAllocState")
         local f = self:GetFrameRef("boss" .. bossIndex)
         if not f then return end
 
-        local slot = allocState.frameSlot[f]
+        local slot = tonumber(f:GetAttribute("assignedSlot"))
         if not slot then
             for i = 1, 8 do
-                if not allocState.slotUsed[i] then
+                if not self:GetAttribute("slotTaken" .. i) then
                     slot = i
                     break
                 end
             end
             if not slot then return end
-            allocState.slotUsed[slot] = true
-            allocState.frameSlot[f] = slot
+            self:SetAttribute("slotTaken" .. slot, true)
+            f:SetAttribute("assignedSlot", slot)
         end
 
         local anchor = self:GetAttribute("anchor") or "TOPLEFT"
@@ -543,23 +537,24 @@ function PinnedFrames:CreateBossSecureHandler(setIndex, container, bossFrames)
     -- keep their slot assignments (no compaction — matches Targeted List rules).
     handler:SetAttribute("onBossHide", [[
         local bossIndex = ...
-        self:RunAttribute("initAllocState")
         local f = self:GetFrameRef("boss" .. bossIndex)
         if not f then return end
 
-        local slot = allocState.frameSlot[f]
+        local slot = tonumber(f:GetAttribute("assignedSlot"))
         if slot then
-            allocState.slotUsed[slot] = nil
-            allocState.frameSlot[f] = nil
+            self:SetAttribute("slotTaken" .. slot, false)
+            f:SetAttribute("assignedSlot", nil)
         end
     ]])
 
     -- Invoked from Lua at combat end to wipe all slot assignments. Next
-    -- _onshow cycle starts fresh from slot 1.
+    -- onBossShow cycle starts fresh from slot 1.
     handler:SetAttribute("resetAllocState", [[
-        self:RunAttribute("initAllocState")
-        for i = 1, 8 do allocState.slotUsed[i] = nil end
-        for f in pairs(allocState.frameSlot) do allocState.frameSlot[f] = nil end
+        for i = 1, 8 do
+            self:SetAttribute("slotTaken" .. i, false)
+            local f = self:GetFrameRef("boss" .. i)
+            if f then f:SetAttribute("assignedSlot", nil) end
+        end
     ]])
 
     -- GUID-swap poll. Midnight 12.0 can silently reassign bossN to a new NPC
@@ -1411,13 +1406,18 @@ function PinnedFrames:ApplyBossLayout(setIndex)
     local handler = self.bossHandlers[setIndex]
     if handler then
         handler:Execute([[
-            self:RunAttribute("initAllocState")
             local anchor = self:GetAttribute("anchor") or "TOPLEFT"
-            for f, slot in pairs(allocState.frameSlot) do
-                local x = tonumber(self:GetAttribute("slot" .. slot .. "x")) or 0
-                local y = tonumber(self:GetAttribute("slot" .. slot .. "y")) or 0
-                f:ClearAllPoints()
-                f:SetPoint(anchor, self, anchor, x, y)
+            for i = 1, 8 do
+                local f = self:GetFrameRef("boss" .. i)
+                if f then
+                    local slot = tonumber(f:GetAttribute("assignedSlot"))
+                    if slot then
+                        local x = tonumber(self:GetAttribute("slot" .. slot .. "x")) or 0
+                        local y = tonumber(self:GetAttribute("slot" .. slot .. "y")) or 0
+                        f:ClearAllPoints()
+                        f:SetPoint(anchor, self, anchor, x, y)
+                    end
+                end
             end
         ]])
     end
