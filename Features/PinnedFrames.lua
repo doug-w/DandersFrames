@@ -16,7 +16,6 @@ PinnedFrames.bossFrames = {}  -- [setIndex] = { [1..8] = boss frame }
 PinnedFrames.bossHandlers = {}  -- [setIndex] = SecureHandlerBaseTemplate frame (runs compact reposition snippet)
 PinnedFrames.testFrames = {}    -- [setIndex] = { [1..N] = fake non-secure test frame (player-mode Test Mode)}
 PinnedFrames.testContainers = {} -- [setIndex] = non-secure container at the test-mode profile's position for this set
-PinnedFrames.preview = { containers = {}, mode = nil }  -- Preview containers for editing inactive mode
 PinnedFrames.initialized = false
 PinnedFrames.currentMode = nil  -- Track what mode we initialized for
 
@@ -1637,277 +1636,13 @@ function PinnedFrames:UpdateLabel(setIndex)
     label:SetText(labelText)
 end
 
--- ============================================================
--- PREVIEW CONTAINERS (for editing inactive mode's position)
--- Created when the options panel is open to a mode that differs
--- from the actual game mode, so users can reposition pinned frames
--- for that mode without joining a raid/party. Previews are purely
--- visual — no SecureGroupHeader, no child frames — just a sized
--- placeholder box plus a drag handle.
--- ============================================================
-
--- Compute preview container size from the preview mode's DB
-local function CalcPreviewSize(modeDb, set)
-    local frameWidth = modeDb.frameWidth or 120
-    local frameHeight = modeDb.frameHeight or 50
-
-    local count
-    if IsBossSet(set) then
-        -- Bosses are only known mid-encounter; ResizeContainer falls back to a
-        -- single-frame placeholder when no boss is visible, so mirror that.
-        count = 1
-    else
-        count = (set.players and #set.players) or 0
-    end
-    if count < 1 then count = 1 end
-
-    local horizontal = set.growDirection == "HORIZONTAL"
-    local hSpacing = set.horizontalSpacing or 2
-    local vSpacing = set.verticalSpacing or 2
-    local unitsPerRow = set.unitsPerRow or 5
-
-    local rows = math.ceil(count / unitsPerRow)
-    local cols = math.min(count, unitsPerRow)
-
-    local width, height
-    if horizontal then
-        width = cols * frameWidth + (cols - 1) * hSpacing
-        height = rows * frameHeight + (rows - 1) * vSpacing
-    else
-        width = rows * frameWidth + (rows - 1) * hSpacing
-        height = cols * frameHeight + (cols - 1) * vSpacing
-    end
-
-    return math.max(width, 50), math.max(height, 30)
-end
-
--- Build label string for a preview, e.g. "Pinned 1  (Raid preview)"
-local function BuildPreviewLabel(set, setIndex, isRaid)
-    local labelText = set.name
-    if not labelText or labelText == "" then
-        labelText = "Pinned " .. setIndex
-    end
-    return labelText .. "  |cffaaaaaa(" .. (isRaid and "Raid" or "Party") .. " preview)|r"
-end
-
--- Create a preview container for setIndex showing `mode`'s settings
-function PinnedFrames:CreatePreviewSet(setIndex, mode)
-    local modeDb = DF.db and DF.db[mode]
-    if not modeDb or not modeDb.pinnedFrames then return end
-    local set = modeDb.pinnedFrames.sets and modeDb.pinnedFrames.sets[setIndex]
-    if not set then return end
-
-    local isRaid = (mode == "raid")
-    local colors = GetModeColors(isRaid)
-
-    local container = CreateFrame("Frame", nil, UIParent)
-    container:SetFrameStrata("MEDIUM")
-    container:SetClampedToScreen(true)
-
-    local initScale = set.scale or 1.0
-    container:SetScale(initScale)
-
-    local w, h = CalcPreviewSize(modeDb, set)
-    container:SetSize(w, h)
-
-    local anchor = GetContainerAnchorPoint(set)
-    local pos = set.position or { point = anchor, x = 0, y = 200 * (setIndex == 1 and 1 or -1) }
-    local useAnchor = pos.point or anchor
-    container:ClearAllPoints()
-    container:SetPoint(useAnchor, UIParent, useAnchor, (pos.x or 0) / initScale, (pos.y or 0) / initScale)
-
-    -- Background fill
-    container.bg = container:CreateTexture(nil, "BACKGROUND")
-    container.bg:SetAllPoints()
-    container.bg:SetColorTexture(unpack(colors.containerBg))
-
-    -- Border
-    container.border = CreateFrame("Frame", nil, container, "BackdropTemplate")
-    container.border:SetAllPoints()
-    container.border:SetBackdrop({
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
-    })
-    container.border:SetBackdropBorderColor(unpack(colors.containerBorder))
-
-    -- Mover frame (parented to UIParent for scale independence)
-    local mover = CreateFrame("Frame", nil, UIParent)
-    mover:SetSize(140, 16)
-    mover:SetFrameStrata("HIGH")
-    mover:SetPoint("BOTTOM", container, "TOP", 0, 2)
-
-    mover.bg = mover:CreateTexture(nil, "BACKGROUND")
-    mover.bg:SetAllPoints()
-    mover.bg:SetColorTexture(unpack(colors.moverBg))
-
-    mover.border = mover:CreateTexture(nil, "BORDER")
-    mover.border:SetAllPoints()
-    mover.border:SetColorTexture(unpack(colors.moverBorder))
-
-    local moverInner = mover:CreateTexture(nil, "ARTWORK")
-    moverInner:SetPoint("TOPLEFT", 1, -1)
-    moverInner:SetPoint("BOTTOMRIGHT", -1, 1)
-    moverInner:SetColorTexture(unpack(colors.moverBg))
-
-    mover.text = mover:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    mover.text:SetPoint("CENTER")
-    mover.text:SetText((isRaid and "Raid" or "Party") .. " Preview — Drag")
-    mover.text:SetTextColor(unpack(colors.moverText))
-
-    mover:EnableMouse(true)
-    mover:RegisterForDrag("LeftButton")
-
-    local startMouseX, startMouseY, startPosX, startPosY
-
-    mover:SetScript("OnDragStart", function(self)
-        local dragAnchor = GetContainerAnchorPoint(set)
-        local uiScale = UIParent:GetEffectiveScale()
-        startMouseX, startMouseY = GetCursorPosition()
-        startMouseX = startMouseX / uiScale
-        startMouseY = startMouseY / uiScale
-        local p = set.position or { x = 0, y = 0 }
-        startPosX = p.x or 0
-        startPosY = p.y or 0
-        self:SetScript("OnUpdate", function()
-            local mx, my = GetCursorPosition()
-            local ps = UIParent:GetEffectiveScale()
-            mx = mx / ps
-            my = my / ps
-            local newX = startPosX + (mx - startMouseX)
-            local newY = startPosY + (my - startMouseY)
-            local s = container:GetScale() or 1
-            container:ClearAllPoints()
-            container:SetPoint(dragAnchor, UIParent, dragAnchor, newX / s, newY / s)
-        end)
-    end)
-
-    mover:SetScript("OnDragStop", function(self)
-        self:SetScript("OnUpdate", nil)
-        if not startMouseX then return end
-        local dragAnchor = GetContainerAnchorPoint(set)
-        local uiScale = UIParent:GetEffectiveScale()
-        local mx, my = GetCursorPosition()
-        mx = mx / uiScale
-        my = my / uiScale
-        local finalX = startPosX + (mx - startMouseX)
-        local finalY = startPosY + (my - startMouseY)
-        set.position = { point = dragAnchor, x = finalX, y = finalY }
-        local s = container:GetScale() or 1
-        container:ClearAllPoints()
-        container:SetPoint(dragAnchor, UIParent, dragAnchor, finalX / s, finalY / s)
-    end)
-
-    -- Label above the mover
-    local label = UIParent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    label:SetPoint("BOTTOM", mover, "TOP", 0, 2)
-    label:SetText(BuildPreviewLabel(set, setIndex, isRaid))
-    label:SetTextColor(unpack(colors.moverText))
-
-    container.mover = mover
-    container.label = label
-    container.previewMode = mode
-    container.previewSet = set
-
-    -- Match the real container's visibility rules so the preview reflects the
-    -- edited set's enabled/locked/showLabel state.
-    local enabled = set.enabled ~= false
-    container:SetShown(enabled)
-    mover:SetShown(enabled and not set.locked)
-    label:SetShown(enabled and set.showLabel)
-
-    self.preview.containers[setIndex] = container
-end
-
--- Refresh a preview set's size/position/label after settings change
-function PinnedFrames:UpdatePreviewSet(setIndex)
-    if not self.preview or not self.preview.mode then return end
-    local c = self.preview.containers and self.preview.containers[setIndex]
-    if not c then return end
-
-    local mode = self.preview.mode
-    local modeDb = DF.db and DF.db[mode]
-    if not modeDb or not modeDb.pinnedFrames then return end
-    local set = modeDb.pinnedFrames.sets and modeDb.pinnedFrames.sets[setIndex]
-    if not set then return end
-
-    -- Scale
-    c:SetScale(set.scale or 1.0)
-
-    -- Size
-    local w, h = CalcPreviewSize(modeDb, set)
-    c:SetSize(w, h)
-
-    -- Reposition (convert if anchor changed)
-    local anchor = GetContainerAnchorPoint(set)
-    local pos = set.position
-    if pos then
-        local savedAnchor = pos.point or anchor
-        if savedAnchor ~= anchor and c:GetLeft() then
-            local newX, newY = ConvertAnchorPosition(c, savedAnchor, anchor)
-            if newX and newY then
-                local cs = c:GetScale() or 1
-                pos.point = anchor
-                pos.x = newX * cs
-                pos.y = newY * cs
-            end
-        end
-        c:ClearAllPoints()
-        local s = c:GetScale() or 1
-        c:SetPoint(anchor, UIParent, anchor, (pos.x or 0) / s, (pos.y or 0) / s)
-        pos.point = anchor
-    end
-
-    -- Refresh label text and visibility
-    local enabled = set.enabled ~= false
-    c:SetShown(enabled)
-    if c.mover then
-        c.mover:SetShown(enabled and not set.locked)
-    end
-    if c.label then
-        c.label:SetText(BuildPreviewLabel(set, setIndex, mode == "raid"))
-        c.label:SetShown(enabled and set.showLabel)
-    end
-end
-
--- Show previews for the given mode (or hide if mode matches actual)
-function PinnedFrames:ShowPreview(mode)
-    if not mode or mode == GetActualMode() then
-        self:HidePreview()
-        return
-    end
-
-    -- Already showing for this mode -- just refresh layouts
-    if self.preview and self.preview.mode == mode and self.preview.containers then
-        for i = 1, 2 do self:UpdatePreviewSet(i) end
-        return
-    end
-
-    -- Rebuild
-    self:HidePreview()
-    self.preview = self.preview or { containers = {} }
-    self.preview.containers = {}
-    self.preview.mode = mode
-    for i = 1, 2 do
-        self:CreatePreviewSet(i, mode)
-    end
-end
-
-function PinnedFrames:HidePreview()
-    if self.preview and self.preview.containers then
-        for i = 1, 2 do
-            local c = self.preview.containers[i]
-            if c then
-                if c.mover then c.mover:Hide() end
-                if c.label then c.label:Hide() end
-                c:Hide()
-            end
-            self.preview.containers[i] = nil
-        end
-    end
-    if self.preview then
-        self.preview.mode = nil
-    end
-end
+-- Backwards-compat stubs for the old preview-container system (removed in
+-- favour of Test Mode, which does the same job with fake frames). These
+-- no-ops keep external callers (Options.lua) working until their calls are
+-- cleaned up; safe to remove once all callsites are updated.
+function PinnedFrames:ShowPreview(_) end
+function PinnedFrames:HidePreview() end
+function PinnedFrames:UpdatePreviewSet(_) end
 
 -- ============================================================
 -- INITIALIZATION
@@ -2023,13 +1758,6 @@ function PinnedFrames:Reinitialize()
     
     self.initialized = false
     self:Initialize()
-
-    -- Re-evaluate preview visibility after a mode change:
-    -- if the previewed mode is now the actual mode, previews become redundant
-    -- and ShowPreview() will hide them automatically.
-    if self.preview and self.preview.mode then
-        self:ShowPreview(self.preview.mode)
-    end
 end
 
 -- Refresh all child frames (calls FullFrameRefresh on each)
@@ -2415,10 +2143,105 @@ local function CreatePlayerTestFrame(setIndex, index, container, isRaidMode, isB
     return frame
 end
 
+-- Attach a drag mover to the test container. Lets the user reposition test
+-- frames live during test mode by dragging this handle — updates the
+-- TEST MODE'S profile set.position (raid profile when raid test is on).
+-- Themed with GetModeColors so raid test uses orange, party test uses blue.
+local function AttachTestMover(container, set, isRaidMode)
+    if container.testMover then
+        -- Refresh refs + theme colors in case mode flipped
+        container.testMover.dfSet = set
+        container.testMover.dfIsRaidMode = isRaidMode
+        local colors = GetModeColors(isRaidMode)
+        container.testMover.bg:SetColorTexture(unpack(colors.moverBg))
+        container.testMover.borderTex:SetColorTexture(unpack(colors.moverBorder))
+        container.testMover.inner:SetColorTexture(unpack(colors.moverBg))
+        container.testMover.text:SetTextColor(unpack(colors.moverText))
+        container.testMover.text:SetText((isRaidMode and "Raid" or "Party") .. " Test — Drag")
+        container.testMover:Show()
+        return
+    end
+
+    local colors = GetModeColors(isRaidMode)
+    local mover = CreateFrame("Frame", nil, UIParent)
+    mover:SetSize(140, 16)
+    mover:SetFrameStrata("HIGH")
+    mover:SetPoint("BOTTOM", container, "TOP", 0, 2)
+    mover.dfSet = set
+    mover.dfIsRaidMode = isRaidMode
+
+    mover.bg = mover:CreateTexture(nil, "BACKGROUND")
+    mover.bg:SetAllPoints()
+    mover.bg:SetColorTexture(unpack(colors.moverBg))
+
+    mover.borderTex = mover:CreateTexture(nil, "BORDER")
+    mover.borderTex:SetAllPoints()
+    mover.borderTex:SetColorTexture(unpack(colors.moverBorder))
+    mover.inner = mover:CreateTexture(nil, "ARTWORK")
+    mover.inner:SetPoint("TOPLEFT", 1, -1)
+    mover.inner:SetPoint("BOTTOMRIGHT", -1, 1)
+    mover.inner:SetColorTexture(unpack(colors.moverBg))
+
+    mover.text = mover:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    mover.text:SetPoint("CENTER")
+    mover.text:SetText((isRaidMode and "Raid" or "Party") .. " Test — Drag")
+    mover.text:SetTextColor(unpack(colors.moverText))
+
+    mover:EnableMouse(true)
+    mover:RegisterForDrag("LeftButton")
+
+    local startMouseX, startMouseY, startPosX, startPosY
+
+    mover:SetScript("OnDragStart", function(self)
+        local currentSet = self.dfSet
+        if not currentSet then return end
+        local dragAnchor = GetContainerAnchorPoint(currentSet)
+        local uiScale = UIParent:GetEffectiveScale()
+        startMouseX, startMouseY = GetCursorPosition()
+        startMouseX = startMouseX / uiScale
+        startMouseY = startMouseY / uiScale
+        local p = currentSet.position or { x = 0, y = 0 }
+        startPosX = p.x or 0
+        startPosY = p.y or 0
+        self:SetScript("OnUpdate", function()
+            local mx, my = GetCursorPosition()
+            local ps = UIParent:GetEffectiveScale()
+            mx = mx / ps
+            my = my / ps
+            local newX = startPosX + (mx - startMouseX)
+            local newY = startPosY + (my - startMouseY)
+            local s = container:GetScale() or 1
+            container:ClearAllPoints()
+            container:SetPoint(dragAnchor, UIParent, dragAnchor, newX / s, newY / s)
+        end)
+    end)
+
+    mover:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+        if not startMouseX then return end
+        local currentSet = self.dfSet
+        if not currentSet then return end
+        local dragAnchor = GetContainerAnchorPoint(currentSet)
+        local uiScale = UIParent:GetEffectiveScale()
+        local mx, my = GetCursorPosition()
+        mx = mx / uiScale
+        my = my / uiScale
+        local finalX = startPosX + (mx - startMouseX)
+        local finalY = startPosY + (my - startMouseY)
+        currentSet.position = { point = dragAnchor, x = finalX, y = finalY }
+        local s = container:GetScale() or 1
+        container:ClearAllPoints()
+        container:SetPoint(dragAnchor, UIParent, dragAnchor, finalX / s, finalY / s)
+    end)
+
+    container.testMover = mover
+end
+
 -- Ensure the test container for a set exists and is positioned using the
 -- specified mode's profile config for that set (so raid test mode while solo
 -- anchors at the raid-profile's configured pinned position, not at the
 -- party-profile's position). Non-secure frame; can be created in combat.
+-- Also attaches a drag mover so the user can reposition test frames live.
 function PinnedFrames:EnsureTestContainer(setIndex, set, isRaidMode)
     local container = self.testContainers[setIndex]
     if not container then
@@ -2451,6 +2274,8 @@ function PinnedFrames:EnsureTestContainer(setIndex, set, isRaidMode)
         (pos.x or 0) / scale, (pos.y or 0) / scale
     )
     container:Show()
+
+    AttachTestMover(container, set, isRaidMode)
     return container
 end
 
@@ -2562,8 +2387,10 @@ function PinnedFrames:HidePlayerTestFrames(setIndex)
             if pool[i] then pool[i]:Hide() end
         end
     end
-    if self.testContainers[setIndex] then
-        self.testContainers[setIndex]:Hide()
+    local container = self.testContainers[setIndex]
+    if container then
+        if container.testMover then container.testMover:Hide() end
+        container:Hide()
     end
 end
 
