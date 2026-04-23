@@ -1,5 +1,5 @@
 local addonName, DF = ...
-DF.BUILD_DATE = "2026-04-23T10:37:05Z"
+DF.BUILD_DATE = "2026-04-23T16:36:58Z"
 DF.RELEASE_CHANNEL = "alpha"
 DF.CHANGELOG_TEXT = [===[
 # DandersFrames Changelog
@@ -8,13 +8,19 @@ DF.CHANGELOG_TEXT = [===[
 
 ### New Features
 
-* **Pinned Frames in Test Mode** — Test Mode now fills your enabled pinned sets with fake units so you can design the layout without being in a group. Boss sets show friendly-NPC test units; player-mode sets show party/raid test units. A new **Test Count** slider in the Pinned Frames settings chooses how many frames appear (1–8 boss, 1–10 player).
+* **Pinned Frames in Test Mode** — Test Mode now fills your enabled pinned sets with fake units so you can design the layout without being in a group. Boss sets show friendly-NPC test units (Fiery Treant, Charred Bramble, etc.); player-mode sets show party/raid test units. A new **Test Count** slider in the Pinned Frames settings chooses how many frames appear (1–8 boss, 1–10 player). Test frames are non-secure mock frames that look identical to live frames — your real pinned setup isn't touched. Raid test mode only shows raid-profile sets, party test mode only shows party-profile sets, and the other mode's frames are never affected.
+* **Dispel Overlay redesign** — Private Aura Dispel Overlay settings have moved to the Dispel Overlay tab under a new **Overlay Source** dropdown with four modes:
+    * **Hybrid** — DandersFrames for normal dispels, Blizzard for boss debuffs (recommended)
+    * **DandersFrames** — full customisation, does not cover boss debuffs
+    * **Blizzard** — covers both normal debuffs and boss debuffs, limited customisation
+    * **Off** — disabled
+    
+    In Hybrid mode the two overlays no longer double up; DandersFrames handles normal dispels while Blizzard picks up boss debuffs only. "Show Overlay For" (Dispellable By Me / All Dispellable) is now a single unified setting shared by both overlays.
 
 ### Improvements
 
 * (Private Aura Dispel Overlay) Overlay no longer covers the frame border, text, and icons
 * (Private Aura Dispel Overlay) Added an Alpha slider to dim the overlay
-* (Private Aura Dispel Overlay) No longer doubles up with DF's own Dispel Overlay for normal debuffs — the Blizzard overlay now only shows when DF's has nothing to show (boss debuffs)
 
 ### Changes
 
@@ -28,6 +34,8 @@ DF.CHANGELOG_TEXT = [===[
 * (Friendly Boss NPC Frames) Aura Designer indicators now apply correctly when a boss slot swaps to a new NPC mid-encounter
 * (Friendly Boss NPC Frames) Out-of-range fading now works on boss frames
 * (Friendly Boss NPC Frames) Fix health, power, name, absorb, heal prediction, and aura updates not applying reliably
+* (Pinned Frames) Fix stale background, border, and label from the real pinned container showing behind test frames when Test Mode matches the current group mode
+* (Pinned Frames) The set label now appears above test frames in all cases, including cross-mode previews (e.g. raid test mode while in a party)
 * (Targeted List) Cast bar now snaps to full yellow on interrupt instead of continuing to fill
 
 ### Internal
