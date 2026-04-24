@@ -440,7 +440,7 @@ SetupContainerOverlay = function(frame, unit, db)
     wrapper:SetParent(frame)
     wrapper:ClearAllPoints()
     wrapper:SetAllPoints(frame)
-    wrapper:SetFrameLevel(frame:GetFrameLevel() + 6)
+    wrapper:SetFrameLevel(frame:GetFrameLevel() + (db.bossDebuffsContainerOverlayFrameLevel or 6))
     -- Always keep the wrapper Shown so Blizzard's container eventFrame
     -- (a descendant, see Blizzard_PrivateAurasUI.lua:699-707) stays
     -- registered for UNIT_AURA. Visibility is controlled via alpha so
@@ -630,6 +630,13 @@ function DF:UpdateContainerOverlaySettings(frame)
     -- Update attributes for live changes
     wrapper:SetAttribute("dispel-indicator-option", db.dispelOverlayDispelType or 2)
     wrapper:SetAttribute("aura-organization-type", db.bossDebuffsContainerOverlayGradientDir)
+
+    -- Live frame-level adjustment (user may need to raise it above text on
+    -- short/wide frames where DF's content overlay covers the gradient).
+    local parent = wrapper:GetParent()
+    if parent then
+        wrapper:SetFrameLevel(parent:GetFrameLevel() + (db.bossDebuffsContainerOverlayFrameLevel or 6))
+    end
 
     -- Push the user alpha directly so Blizzard-mode slider changes take
     -- effect (UpdateContainerOverlayVisibility is Hybrid-only now and would

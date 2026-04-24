@@ -7444,6 +7444,17 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             end), 40)
             blizAlpha.hideOn = HideIfNotBlizzard
 
+            local blizFrameLevel = blizGroup:AddWidget(GUI:CreateSlider(self.child, L["Frame Level"], 0, 50, 1, db, "bossDebuffsContainerOverlayFrameLevel", function()
+                if DF.IterateAllFrames then
+                    DF:IterateAllFrames(function(f)
+                        if DF.UpdateContainerOverlaySettings then DF:UpdateContainerOverlaySettings(f) end
+                    end)
+                end
+            end), 40)
+            blizFrameLevel.hideOn = HideIfNotBlizzard
+            local frameLevelNote = blizGroup:AddWidget(GUI:CreateLabel(self.child, "|cFF888888" .. L["Raise above 25 if the overlay is hidden by frame text on short/wide frames."] .. "|r", 260), 30)
+            frameLevelNote.hideOn = HideIfNotBlizzard
+
             blizGroup.hideOn = HideIfNotBlizzard
             blizSection:RegisterChild(blizGroup)
             Add(blizGroup, nil, 1)

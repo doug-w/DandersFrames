@@ -869,6 +869,7 @@ DF.PartyDefaults = {
     -- dispelOverlayDispelType (unified across both overlay systems).
     bossDebuffsContainerOverlayGradientDir = 0,
     bossDebuffsContainerOverlayAlpha = 1.0,
+    bossDebuffsContainerOverlayFrameLevel = 6,
 
     -- Buff settings
     buffAlpha = 1,
@@ -2184,6 +2185,7 @@ DF.RaidDefaults = {
     -- dispelOverlayDispelType (unified across both overlay systems).
     bossDebuffsContainerOverlayGradientDir = 0,
     bossDebuffsContainerOverlayAlpha = 1.0,
+    bossDebuffsContainerOverlayFrameLevel = 6,
 
     -- Buff settings
     buffAlpha = 1,

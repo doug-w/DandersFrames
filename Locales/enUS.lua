@@ -1095,6 +1095,7 @@ L["Raid to Party"] = true
 L["Raid: Group layout sorts within each group.\nFlat grid layout sorts all players together."] = true
 L["Raids"] = true
 L["Raids, battlegrounds (1-40)"] = true
+L["Raise above 25 if the overlay is hidden by frame text on short/wide frames."] = true
 L["Ranged DPS"] = true
 L["Range Check Interval"] = true
 L["Range Check Spell"] = true

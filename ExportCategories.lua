@@ -418,6 +418,7 @@ DF.ExportCategories = {
         -- the Dispel category.
         "bossDebuffsContainerOverlayGradientDir",
         "bossDebuffsContainerOverlayAlpha",
+        "bossDebuffsContainerOverlayFrameLevel",
 
         -- Buff Filters
         "buffFilterCancelable",

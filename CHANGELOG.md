@@ -2,6 +2,10 @@
 
 ## [4.3.4] - 2026-04-24
 
+### Improvements
+
+* (Dispel Overlay) Added a Frame Level slider to the Blizzard overlay settings. Raise it above 25 if the overlay gets hidden behind frame text on short/wide frames.
+
 ### Bug Fixes
 
 * (Buff Bar) Fix buff icons sometimes getting stuck on the bar until reload after a unit went out of range and back
