@@ -1,5 +1,11 @@
 # DandersFrames Changelog
 
+## [4.3.4] - 2026-04-24
+
+### Bug Fixes
+
+* (Private Aura Dispel Overlay) Overlay now stays on the correct player when roster or sort changes move players between slots, including mid-combat
+
 ## [4.3.3] - 2026-04-21
 
 ### New Features
