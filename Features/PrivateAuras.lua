@@ -447,8 +447,11 @@ SetupContainerOverlay = function(frame, unit, db)
     -- the container's internal self.dispels stays in sync when we gate
     -- the overlay on dfDispelOverlay:IsShown().
     wrapper:Show()
-    -- Initial alpha is set by UpdateContainerOverlayVisibility below,
-    -- which multiplies the user-chosen alpha with the dfDispelOverlay gate.
+    -- Apply the user-chosen alpha directly. In Blizzard mode the wrapper
+    -- keeps this value permanently; in Hybrid mode the
+    -- UpdateContainerOverlayVisibility call below may immediately override
+    -- to 0 if DF's own overlay is currently shown.
+    wrapper:SetAlpha(db.bossDebuffsContainerOverlayAlpha or 1.0)
 
     -- Determine group type from unit token
     local groupType
@@ -558,16 +561,17 @@ function DF:UpdateContainerOverlayVisibility(frame)
     local wrapper = frame.containerOverlayFrame
     if not wrapper then return end
     local db = DF:GetFrameDB(frame)
-    local userAlpha = (db and db.bossDebuffsContainerOverlayAlpha) or 1.0
     local src = (db and db.dispelOverlaySource) or "both"
 
-    -- In "blizzard" (and any non-"both") source, DF's own overlay never runs,
-    -- so the gate is trivial: just show the wrapper at user alpha. No defer
-    -- needed since there's no DF/Blizzard transition race.
-    if src ~= "both" then
-        wrapper:SetAlpha(userAlpha)
-        return
-    end
+    -- Only the Hybrid ("both") source needs alpha-gating — that's the single
+    -- mode where DF's own overlay and the Blizzard wrapper both exist and
+    -- need to be alternated. In other modes the wrapper's alpha is owned
+    -- by SetupContainerOverlay / UpdateContainerOverlaySettings directly:
+    --   * off / dandersframes → wrapper doesn't exist (teardown elsewhere)
+    --   * blizzard → wrapper stays at userAlpha permanently
+    -- Skipping the rest of this function on every UNIT_AURA in Blizzard
+    -- mode avoids a redundant GetFrameDB + SetAlpha per tick.
+    if src ~= "both" then return end
 
     -- Hybrid ("both") gate: suppress the Blizzard wrapper while DF's own
     -- overlay is shown, reveal it otherwise (so Blizzard can still fire for
@@ -627,9 +631,11 @@ function DF:UpdateContainerOverlaySettings(frame)
     wrapper:SetAttribute("dispel-indicator-option", db.dispelOverlayDispelType or 2)
     wrapper:SetAttribute("aura-organization-type", db.bossDebuffsContainerOverlayGradientDir)
 
-    -- Alpha is routed through the visibility gate so a live slider change
-    -- respects the current dfDispelOverlay state (gate wins: wrapper stays
-    -- alpha=0 while DF's overlay is visible, regardless of slider value).
+    -- Push the user alpha directly so Blizzard-mode slider changes take
+    -- effect (UpdateContainerOverlayVisibility is Hybrid-only now and would
+    -- no-op otherwise). In Hybrid mode the gate call immediately overrides
+    -- to 0 if DF's overlay is visible.
+    wrapper:SetAlpha(db.bossDebuffsContainerOverlayAlpha or 1.0)
     DF:UpdateContainerOverlayVisibility(frame)
 
     -- Signal the container to re-read settings
