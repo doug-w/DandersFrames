@@ -144,7 +144,12 @@ function DF:SetupPrivateAuraAnchors(frame)
     end
     frameAnchors[frame] = {}
 
-    local baseLevel = frame:GetFrameLevel()
+    -- Anchor against contentOverlay's level (the icon's actual parent in the
+    -- normal case) rather than the unit frame's. The unit button's level can
+    -- shift mid-life as the secure header reshuffles slots; contentOverlay's
+    -- level is set once at create time and matches what every other indicator
+    -- uses as its base.
+    local baseLevel = (frame.contentOverlay or frame):GetFrameLevel()
 
     for i = 1, maxIcons do
         -- Lazy-create the icon frame
@@ -753,13 +758,20 @@ function DF:ReanchorPrivateAuras(frame)
     local iconHeight    = db.bossDebuffsIconHeight or 20
     local borderScale   = db.bossDebuffsBorderScale or 1.0
     local textScale     = db.bossDebuffsTextScale or 1.0
+    local frameLevel    = db.bossDebuffsFrameLevel or 35
     local scaledIconW   = iconWidth  / textScale
     local scaledIconH   = iconHeight / textScale
     local scaledBorder  = borderScale / textScale
 
+    -- Re-apply icon frame level. The unit button's level can shift across
+    -- secure header reshuffles, so a level captured at first SetupPrivateAuraAnchors
+    -- can drift and leave icons rendering behind frame elements.
+    local baseLevel = (frame.contentOverlay or frame):GetFrameLevel()
+
     -- Re-register each frame with new unit token
     for i, iconFrame in ipairs(frame.bossDebuffFrames) do
         if iconFrame:IsShown() then
+            iconFrame:SetFrameLevel(baseLevel + frameLevel)
             local success, anchorID = pcall(function()
                 return C_UnitAuras.AddPrivateAuraAnchor({
                     unitToken = newUnit,
@@ -974,7 +986,7 @@ function DF:UpdateAllPrivateAuraFrameLevel()
             if not frame or not frame.bossDebuffFrames then return end
             local db = DF:GetFrameDB(frame)
             local frameLevel = db.bossDebuffsFrameLevel or 35
-            local baseLevel = frame:GetFrameLevel()
+            local baseLevel = (frame.contentOverlay or frame):GetFrameLevel()
             for _, iconFrame in ipairs(frame.bossDebuffFrames) do
                 iconFrame:SetFrameLevel(baseLevel + frameLevel)
             end
