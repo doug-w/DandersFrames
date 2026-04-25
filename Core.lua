@@ -3969,6 +3969,33 @@ DF._MainEventDispatcher = function(self, event, arg1)
             end
         end
 
+        -- v4.3.4: One-time forced upgrade of "dandersframes" mode users to
+        -- "both" (Hybrid). Hybrid covers boss debuffs via Blizzard's
+        -- container overlay, which DandersFrames-only mode misses entirely.
+        -- Runs once per profile/mode; users can switch back afterwards.
+        local function MigrateDandersToHybrid(modeDb)
+            if modeDb._dandersToHybridV434 then return end
+            if modeDb.dispelOverlaySource == "dandersframes" then
+                modeDb.dispelOverlaySource = "both"
+            end
+            modeDb._dandersToHybridV434 = true
+        end
+        for _, mode in ipairs({"party", "raid"}) do
+            local modeDb = DF.db[mode]
+            if modeDb then
+                MigrateDandersToHybrid(modeDb)
+            end
+        end
+        if DandersFramesDB_v2 and DandersFramesDB_v2.profiles then
+            for _, profile in pairs(DandersFramesDB_v2.profiles) do
+                for _, mode in ipairs({"party", "raid"}) do
+                    if profile[mode] then
+                        MigrateDandersToHybrid(profile[mode])
+                    end
+                end
+            end
+        end
+
         -- Wrap DF.db with overlay proxy (must happen AFTER all migrations,
         -- BEFORE anything that reads through the proxy)
         DF:WrapDB()
