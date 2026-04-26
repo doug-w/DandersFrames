@@ -175,6 +175,7 @@ function DF:SetupPrivateAuraAnchors(frame)
 
         iconFrame:SetParent(frame.contentOverlay or frame)
         iconFrame:ClearAllPoints()
+        iconFrame:SetFrameStrata(db.bossDebuffsStrata or "MEDIUM")
         iconFrame:SetFrameLevel(baseLevel + frameLevel)
 
         -- hideTooltip: shrink the parent to sub-pixel so Blizzard's C-side icon
@@ -772,8 +773,10 @@ function DF:ReanchorPrivateAuras(frame)
     local baseLevel = (frame.contentOverlay or frame):GetFrameLevel()
 
     -- Re-register each frame with new unit token
+    local strata = db.bossDebuffsStrata or "MEDIUM"
     for i, iconFrame in ipairs(frame.bossDebuffFrames) do
         if iconFrame:IsShown() then
+            iconFrame:SetFrameStrata(strata)
             iconFrame:SetFrameLevel(baseLevel + frameLevel)
             local success, anchorID = pcall(function()
                 return C_UnitAuras.AddPrivateAuraAnchor({
@@ -992,6 +995,19 @@ function DF:UpdateAllPrivateAuraFrameLevel()
             local baseLevel = (frame.contentOverlay or frame):GetFrameLevel()
             for _, iconFrame in ipairs(frame.bossDebuffFrames) do
                 iconFrame:SetFrameLevel(baseLevel + frameLevel)
+            end
+        end)
+    end)
+end
+
+function DF:UpdateAllPrivateAuraStrata()
+    QueueOrExecute("strata", function()
+        DF:IterateAllFrames(function(frame)
+            if not frame or not frame.bossDebuffFrames then return end
+            local db = DF:GetFrameDB(frame)
+            local strata = db.bossDebuffsStrata or "MEDIUM"
+            for _, iconFrame in ipairs(frame.bossDebuffFrames) do
+                iconFrame:SetFrameStrata(strata)
             end
         end)
     end)

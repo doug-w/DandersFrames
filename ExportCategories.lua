@@ -394,6 +394,7 @@ DF.ExportCategories = {
         "bossDebuffsAnchor",
         "bossDebuffsBorderScale",
         "bossDebuffsFrameLevel",
+        "bossDebuffsStrata",
         "bossDebuffsGrowth",
         "bossDebuffsHideTooltip",
         "bossDebuffsIconHeight",

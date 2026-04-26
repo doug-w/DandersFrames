@@ -5209,6 +5209,22 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             if DF.UpdateAllTestBossDebuffs then DF:UpdateAllTestBossDebuffs() end
         end, true), 55)
         frameLevel.hideOn = HideBossDebuffOptions
+
+        local bossDebuffStrataOptions = {
+            BACKGROUND = L["Background"],
+            LOW = L["Low"],
+            MEDIUM = L["Medium"],
+            HIGH = L["High"],
+            DIALOG = L["Dialog"],
+        }
+        local bossDebuffStrata = sizeGroup:AddWidget(GUI:CreateDropdown(self.child, L["Frame Strata"], bossDebuffStrataOptions, db, "bossDebuffsStrata", function()
+            if DF.UpdateAllPrivateAuraStrata then DF:UpdateAllPrivateAuraStrata() end
+            if DF.UpdateAllTestBossDebuffs then DF:UpdateAllTestBossDebuffs() end
+        end), 55)
+        bossDebuffStrata.hideOn = HideBossDebuffOptions
+        local bossDebuffStrataNote = sizeGroup:AddWidget(GUI:CreateLabel(self.child, "|cFF888888" .. L["Raise to HIGH if boss debuff icons render behind the frame on small icon sizes."] .. "|r", 260), 30)
+        bossDebuffStrataNote.hideOn = HideBossDebuffOptions
+
         sizeGroup.hideOn = HideBossDebuffOptions
         Add(sizeGroup, nil, 1)
 

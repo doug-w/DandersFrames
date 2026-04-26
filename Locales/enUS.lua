@@ -1096,6 +1096,7 @@ L["Raid: Group layout sorts within each group.\nFlat grid layout sorts all playe
 L["Raids"] = true
 L["Raids, battlegrounds (1-40)"] = true
 L["Raise strata or frame level if the overlay is hidden by frame text on short/wide frames."] = true
+L["Raise to HIGH if boss debuff icons render behind the frame on small icon sizes."] = true
 L["Ranged DPS"] = true
 L["Range Check Interval"] = true
 L["Range Check Spell"] = true

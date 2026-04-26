@@ -5,6 +5,7 @@
 ### Improvements
 
 * (Dispel Overlay) Added a Frame Strata dropdown and Frame Level slider to the Blizzard overlay settings. Raise them if the overlay gets hidden behind frame text on short/wide frames.
+* (Boss Debuffs) Added a Frame Strata dropdown next to Frame Level. Raise to HIGH if boss debuff icons render behind the frame on small icon sizes.
 
 ### Changes
 
