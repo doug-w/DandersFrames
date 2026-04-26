@@ -871,7 +871,7 @@ DF.PartyDefaults = {
     bossDebuffsContainerOverlayGradientDir = 0,
     bossDebuffsContainerOverlayAlpha = 1.0,
     bossDebuffsContainerOverlayFrameLevel = 6,
-    bossDebuffsContainerOverlayStrata = "HIGH",
+    bossDebuffsContainerOverlayStrata = "MEDIUM",
 
     -- Buff settings
     buffAlpha = 1,
@@ -2189,7 +2189,7 @@ DF.RaidDefaults = {
     bossDebuffsContainerOverlayGradientDir = 0,
     bossDebuffsContainerOverlayAlpha = 1.0,
     bossDebuffsContainerOverlayFrameLevel = 6,
-    bossDebuffsContainerOverlayStrata = "HIGH",
+    bossDebuffsContainerOverlayStrata = "MEDIUM",
 
     -- Buff settings
     buffAlpha = 1,

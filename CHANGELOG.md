@@ -5,7 +5,7 @@
 ### Improvements
 
 * (Dispel Overlay) Added a Frame Strata dropdown and Frame Level slider to the Blizzard overlay settings. Raise them if the overlay gets hidden behind frame text on short/wide frames.
-* (Boss Debuffs) Added a Frame Strata dropdown next to Frame Level. Default is now HIGH so private aura icons always render above frame text and borders. Lower it via the dropdown if you preferred the old behaviour.
+* (Boss Debuffs) Added a Frame Strata dropdown next to Frame Level. Default is now HIGH so private aura icons always render above frame text and borders, including for users with small icon sizes. Lower it via the dropdown if you preferred the old behaviour.
 
 ### Changes
 

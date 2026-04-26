@@ -3996,15 +3996,15 @@ DF._MainEventDispatcher = function(self, event, arg1)
             end
         end
 
-        -- v4.3.4: Force private aura icon + container overlay strata to HIGH
-        -- across all profiles. The 12.0.5 Blizzard refactor calls SetFrameLevel(0)
-        -- on its private aura pool frame; bumping our wrapper/iconFrame strata
-        -- pushes that level-0 child render frame above DF's MEDIUM-strata content
-        -- regardless of frame level. Runs once per profile/mode.
+        -- v4.3.4: Force private aura icon strata to HIGH across all profiles.
+        -- The 12.0.5 Blizzard refactor calls SetFrameLevel(0) on its private
+        -- aura pool frame; bumping our iconFrame strata pushes that level-0
+        -- child render frame above DF's MEDIUM-strata content regardless of
+        -- frame level. Container overlay strata stays at MEDIUM (it has its
+        -- own working frame-level path). Runs once per profile/mode.
         local function MigratePAStrataToHigh(modeDb)
             if modeDb._paStrataHighV434 then return end
             modeDb.bossDebuffsStrata = "HIGH"
-            modeDb.bossDebuffsContainerOverlayStrata = "HIGH"
             modeDb._paStrataHighV434 = true
         end
         for _, mode in ipairs({"party", "raid"}) do

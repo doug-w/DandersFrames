@@ -446,7 +446,7 @@ SetupContainerOverlay = function(frame, unit, db)
     wrapper:SetParent(frame)
     wrapper:ClearAllPoints()
     wrapper:SetAllPoints(frame)
-    wrapper:SetFrameStrata(db.bossDebuffsContainerOverlayStrata or "HIGH")
+    wrapper:SetFrameStrata(db.bossDebuffsContainerOverlayStrata or "MEDIUM")
     wrapper:SetFrameLevel(frame:GetFrameLevel() + (db.bossDebuffsContainerOverlayFrameLevel or 6))
     -- Always keep the wrapper Shown so Blizzard's container eventFrame
     -- (a descendant, see Blizzard_PrivateAurasUI.lua:699-707) stays
@@ -641,7 +641,7 @@ function DF:UpdateContainerOverlaySettings(frame)
     -- Live strata + frame-level adjustment (user may need to raise these above
     -- text on short/wide frames where DF's content overlay covers the gradient,
     -- or to push Blizzard's level-0 child render frames above DF elements).
-    wrapper:SetFrameStrata(db.bossDebuffsContainerOverlayStrata or "HIGH")
+    wrapper:SetFrameStrata(db.bossDebuffsContainerOverlayStrata or "MEDIUM")
     local parent = wrapper:GetParent()
     if parent then
         wrapper:SetFrameLevel(parent:GetFrameLevel() + (db.bossDebuffsContainerOverlayFrameLevel or 6))
