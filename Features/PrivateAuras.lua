@@ -39,6 +39,35 @@ local containerOverlayAnchors = {}
 local SetupOverlayAnchors
 local SetupContainerOverlay
 
+-- Build the iconInfo table for AddPrivateAuraAnchor. Normalises values to
+-- the safest envelope we have empirical evidence Blizzard renders correctly:
+--   * iconWidth == iconHeight (square)
+--   * both rounded to integers
+--   * borderScale = nil at default 1.0 (let Blizzard auto-scale)
+-- Caller passes the user's raw width/height/border + the textScale divisor.
+local function BuildIconInfo(iconW, iconH, borderScale, textScale, parentFrame)
+    local sz = math.floor(math.max(iconW, iconH) / textScale + 0.5)
+    if sz < 1 then sz = 1 end
+    local bs
+    if borderScale and borderScale ~= 1.0 then
+        bs = borderScale / textScale
+    else
+        bs = nil
+    end
+    return {
+        iconWidth   = sz,
+        iconHeight  = sz,
+        borderScale = bs,
+        iconAnchor  = {
+            point         = "CENTER",
+            relativeTo    = parentFrame,
+            relativePoint = "CENTER",
+            offsetX       = 0,
+            offsetY       = 0,
+        },
+    }
+end
+
 -- Pending updates queue (for changes made during combat)
 local pendingUpdates = {}
 
