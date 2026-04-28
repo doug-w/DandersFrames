@@ -162,7 +162,6 @@ function DF:SetupPrivateAuraAnchors(frame)
     -- Compensated values (all divided by textScale so screen-space size is correct)
     local scaledIconW  = iconWidth  / textScale
     local scaledIconH  = iconHeight / textScale
-    local scaledBorder = borderScale / textScale
 
     -- Growth anchoring
     local pointOnCurrent, pointOnPrev, xMult, yMult = GetGrowthAnchors(growth)
@@ -279,18 +278,7 @@ function DF:SetupPrivateAuraAnchors(frame)
                 parent    = iconFrame,
                 showCountdownFrame   = showCountdown,
                 showCountdownNumbers = showNumbers,
-                iconInfo = {
-                    iconWidth   = scaledIconW,
-                    iconHeight  = scaledIconH,
-                    borderScale = scaledBorder,
-                    iconAnchor  = {
-                        point         = "CENTER",
-                        relativeTo    = iconFrame,
-                        relativePoint = "CENTER",
-                        offsetX       = 0,
-                        offsetY       = 0,
-                    },
-                },
+                iconInfo = BuildIconInfo(iconWidth, iconHeight, borderScale, textScale, iconFrame),
             }
             if IS_CONTAINER_SUPPORTED then
                 anchorArgs.isContainer = false
