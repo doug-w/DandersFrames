@@ -2620,7 +2620,18 @@ function CC:ApplyBindingsToFrameUnified(frame, skipKeyboardUpdate)
                     elseif actionType == "target" then
                         local typeAttr = "type-" .. virtualBtn
                         frame:SetAttribute(typeAttr, "target")
-                        frame:SetAttribute("unit-" .. virtualBtn, "mouseover")
+                        -- Mirror the mouse path: only set unit="mouseover" on
+                        -- Blizzard / third-party frames, where the frame's main
+                        -- "unit" attribute may not be reliably exposed.
+                        -- DandersFrames already have a real unit token (party1,
+                        -- raid3, etc.) on their "unit" attribute — the secure
+                        -- target action picks that up and targets via the unit
+                        -- token, which works at any range. Forcing unit-virtualBtn
+                        -- to "mouseover" routed through name-based targeting and
+                        -- reintroduced the /target out-of-range limitation.
+                        if not frame.dfIsDandersFrame then
+                            frame:SetAttribute("unit-" .. virtualBtn, "mouseover")
+                        end
                         -- BUG #860 FIX: state-driver-based combat conditional
                         local combatCond = GetCombatCondition(binding)
                         if combatCond then
