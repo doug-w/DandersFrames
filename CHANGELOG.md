@@ -11,6 +11,7 @@
 
 * (Update Notification) Fix "You aren't in a party." and "You aren't in a raid." chat spam in LFG dungeons, LFR, scenarios, and battlegrounds.
 * (Boss Debuffs) Fix icons sometimes staying invisible after a transient registration hiccup until you fully reload.
+* (Boss Debuffs) Fix icons not rendering at certain size combinations.
 
 ## [4.3.5] - 2026-04-26
 
