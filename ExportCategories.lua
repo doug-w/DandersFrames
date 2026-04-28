@@ -421,6 +421,7 @@ DF.ExportCategories = {
         "bossDebuffsContainerOverlayAlpha",
         "bossDebuffsContainerOverlayFrameLevel",
         "bossDebuffsContainerOverlayStrata",
+        "bossDebuffsContainerOverlaySizeAdjust",
 
         -- Buff Filters
         "buffFilterCancelable",
