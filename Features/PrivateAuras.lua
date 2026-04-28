@@ -277,9 +277,10 @@ function DF:SetupPrivateAuraAnchors(frame)
 
         if success and anchorID then
             table.insert(frameAnchors[frame], anchorID)
-        else
-            iconFrame:Hide()
         end
+        -- No else branch: leave iconFrame Shown so a future Setup/Reanchor call
+        -- can re-register on this slot. Hiding here previously trapped the slot
+        -- because the lightweight ReanchorPrivateAuras path skips !IsShown frames.
     end
 
     -- Old border overlay hack (pre-12.0.5 only)
