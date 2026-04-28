@@ -124,6 +124,7 @@ end
 
 function DF:SetupPrivateAuraAnchors(frame)
     if not frame or not frame.unit then return end
+    if frame.dfIsPetFrame then return end
 
     -- PERF TEST: Skip if disabled
     if DF.PerfTest and not DF.PerfTest.enablePrivateAuras then return end
@@ -750,6 +751,7 @@ end
 -- Blizzard container re-reads its attributes on re-register (matches Grid2).
 function DF:ReanchorPrivateAuras(frame)
     if not frame or not frame.unit then return end
+    if frame.dfIsPetFrame then return end
     if not frame.bossDebuffFrames or #frame.bossDebuffFrames == 0 then return end
 
     -- PERF TEST: Skip if disabled
