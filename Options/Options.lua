@@ -7401,7 +7401,6 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         blizSizeAdjust.hideOn = HideIfNotBlizzard
 
         local editModeBtn = blizGroup:AddWidget(GUI:CreateButton(self.child, L["Open Edit Mode"], 140, 24, function()
-            if DF.GUIFrame then DF.GUIFrame:Hide() end
             if EditModeManagerFrame then
                 ShowUIPanel(EditModeManagerFrame)
             end
