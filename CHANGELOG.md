@@ -9,6 +9,7 @@
 * (Boss Debuffs) Updated the info banner to clarify that boss debuffs trigger dispel overlays in Hybrid or Blizzard mode.
 * (Boss Debuffs) Added a Size Adjust slider for the Blizzard dispel overlay so the gradient can extend past or shrink inside the frame edges.
 * (Boss Debuffs) Replaced separate Icon Width and Icon Height sliders with a single Icon Size slider. Existing settings carry over to the larger of your two old values.
+* (Boss Debuffs) Added an Open Edit Mode button to the Blizzard Overlay settings so you can preview the Blizzard dispel overlay live.
 
 ### Changes
 

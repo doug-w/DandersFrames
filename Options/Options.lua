@@ -7400,6 +7400,16 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         end), 40)
         blizSizeAdjust.hideOn = HideIfNotBlizzard
 
+        local editModeBtn = blizGroup:AddWidget(GUI:CreateButton(self.child, L["Open Edit Mode"], 140, 24, function()
+            if DF.GUIFrame then DF.GUIFrame:Hide() end
+            if EditModeManagerFrame then
+                ShowUIPanel(EditModeManagerFrame)
+            end
+        end), 30)
+        editModeBtn.hideOn = HideIfNotBlizzard
+        local editModeNote = blizGroup:AddWidget(GUI:CreateLabel(self.child, "|cFF888888" .. L["Open edit mode to preview the Blizzard dispel overlay."] .. "|r", 260), 25)
+        editModeNote.hideOn = HideIfNotBlizzard
+
         blizGroup.hideOn = HideIfNotBlizzard
         blizSection:RegisterChild(blizGroup)
         Add(blizGroup, nil, 1)
