@@ -806,7 +806,11 @@ function DF:UpdateDispelOverlayAppearance(frame)
         ApplyOORAlpha(overlay.borderBottom, inRange, alpha, oorAlpha)
         ApplyOORAlpha(overlay.borderLeft, inRange, alpha, oorAlpha)
         ApplyOORAlpha(overlay.borderRight, inRange, alpha, oorAlpha)
-        ApplyOORAlpha(overlay.icon, inRange, alpha, oorAlpha)
+        if overlay.icons then
+            for _, icon in pairs(overlay.icons) do
+                ApplyOORAlpha(icon, inRange, alpha, oorAlpha)
+            end
+        end
         if DF.ApplyDispelOverlayAppearance then
             DF:ApplyDispelOverlayAppearance(frame)
         end
@@ -816,7 +820,11 @@ function DF:UpdateDispelOverlayAppearance(frame)
         if overlay.borderBottom then overlay.borderBottom:SetAlpha(alpha) end
         if overlay.borderLeft then overlay.borderLeft:SetAlpha(alpha) end
         if overlay.borderRight then overlay.borderRight:SetAlpha(alpha) end
-        if overlay.icon then overlay.icon:SetAlpha(alpha) end
+        if overlay.icons then
+            for _, icon in pairs(overlay.icons) do
+                icon:SetAlpha(alpha)
+            end
+        end
     end
 end
 

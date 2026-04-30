@@ -27,6 +27,7 @@
 * (Boss Debuffs) Surface Blizzard private aura API errors instead of silently swallowing them.
 * (Boss Debuffs) Fix icons sometimes rendering behind the unit frame after a re-register, even with frame level raised.
 * (Aura Designer) Reduce GUI lag when opening Aura Designer with many configured effects.
+* (Dispel Overlay) Fix dispel type icons not fading when a unit goes out of range with element-specific alpha enabled.
 
 ## [4.3.5] - 2026-04-26
 
