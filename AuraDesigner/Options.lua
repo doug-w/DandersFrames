@@ -210,18 +210,39 @@ local function GetThemeColor()
     return GUI.GetThemeColor()
 end
 
+-- Shared backdrop info reused by every ApplyBackdrop call to avoid
+-- per-card table allocation when the AD effects list rebuilds.
+local SHARED_BACKDROP_INFO = {
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1,
+}
+
 local function ApplyBackdrop(frame, bgColor, borderColor)
     if not frame.SetBackdrop then Mixin(frame, BackdropTemplateMixin) end
-    frame:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
-    })
-    if bgColor then
-        frame:SetBackdropColor(bgColor.r, bgColor.g, bgColor.b, bgColor.a or 1)
+
+    -- Only call SetBackdrop once per frame — the info table never changes.
+    if not frame.dfAD_backdropApplied then
+        frame:SetBackdrop(SHARED_BACKDROP_INFO)
+        frame.dfAD_backdropApplied = true
     end
+
+    if bgColor then
+        local r, g, b = bgColor.r, bgColor.g, bgColor.b
+        local a = bgColor.a or 1
+        if frame.dfAD_bgR ~= r or frame.dfAD_bgG ~= g or frame.dfAD_bgB ~= b or frame.dfAD_bgA ~= a then
+            frame:SetBackdropColor(r, g, b, a)
+            frame.dfAD_bgR, frame.dfAD_bgG, frame.dfAD_bgB, frame.dfAD_bgA = r, g, b, a
+        end
+    end
+
     if borderColor then
-        frame:SetBackdropBorderColor(borderColor.r, borderColor.g, borderColor.b, borderColor.a or 1)
+        local r, g, b = borderColor.r, borderColor.g, borderColor.b
+        local a = borderColor.a or 1
+        if frame.dfAD_borderR ~= r or frame.dfAD_borderG ~= g or frame.dfAD_borderB ~= b or frame.dfAD_borderA ~= a then
+            frame:SetBackdropBorderColor(r, g, b, a)
+            frame.dfAD_borderR, frame.dfAD_borderG, frame.dfAD_borderB, frame.dfAD_borderA = r, g, b, a
+        end
     end
 end
 
