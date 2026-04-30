@@ -534,7 +534,7 @@ function DF:UpdatePetName(frame)
     if not frame or not frame.unit then return end
     if not UnitExists(frame.unit) then return end
     
-    local name = UnitName(frame.unit)
+    local name = GetUnitName(frame.unit, true)
     if name then
         -- Truncate long names
         local db = DF:GetFrameDB(frame)

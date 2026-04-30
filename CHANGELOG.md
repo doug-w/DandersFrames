@@ -17,6 +17,7 @@
 
 ### Bug Fixes
 
+* (Pet Frames) Fix Lua error spam during boss pulls when a pet is in the group.
 * (Update Notification) Fix "You aren't in a party." and "You aren't in a raid." chat spam in LFG dungeons, LFR, scenarios, and battlegrounds.
 * (Boss Debuffs) Fix icons sometimes staying invisible after a transient registration hiccup until you fully reload.
 * (Boss Debuffs) Fix icons not rendering at certain size combinations.
