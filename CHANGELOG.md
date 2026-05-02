@@ -1,5 +1,11 @@
 # DandersFrames Changelog
 
+## [4.3.7] - 2026-05-02
+
+### Bug Fixes
+
+* (Raid Frames) Fix raid frames jumping upward when group composition changes with Groups Grow From set to Center. Previously the visible frames could shoot off the top of the screen each time a player joined a new group, requiring a Groups Grow From toggle to recover.
+
 ## [4.3.6] - 2026-04-30
 
 ### Improvements

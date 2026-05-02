@@ -2191,6 +2191,111 @@ end
 -- Lua only sets attributes, secure code does all positioning
 -- ============================================================
 
+-- Compensation offset for the raid container's anchor when raidGroupAnchor == "CENTER".
+--
+-- The secure positioning snippet (below) centers the *visible* groups inside a
+-- fixed full-grid-sized container by offsetting each group by
+--     yStart = (totalHeight - populatedHeight) / 2
+-- Where totalHeight is the full 8-group grid capacity and populatedHeight grows
+-- with the number of populated rows. As popRows changes (player joins/leaves
+-- shifts a group across the groupsPerRow threshold), every visible group snaps
+-- by (deltaPopulatedDim / 2) inside the container. Container itself does not
+-- move — only the visible content. Users perceive this as the frames "jumping
+-- upward off the screen" (bug #867).
+--
+-- This helper returns the inverse offset so callers can shift the container by
+-- the same amount, keeping the visible content's screen position stable across
+-- roster transitions. The reference state is popRows=1 (one row populated) so
+-- existing user positions don't shift on first load: with one populated row,
+-- compensation is (0, 0) and the container sits exactly at db.raidAnchorX/Y
+-- — identical to current behaviour. As popRows grows beyond 1, compensation
+-- shifts the container away from the anchor by enough to cancel the snippet's
+-- upward visual snap.
+--
+-- Returns (dx, dy) to add to the container's anchor coordinates BEFORE the
+-- frameScale division. (0, 0) for any case the bug doesn't apply to:
+--   * raidGroupAnchor != "CENTER"
+--   * raidUseGroups == false (flat raid mode has its own positioning path)
+--   * No populated groups (nothing visible yet)
+--   * Single populated row (no drift)
+--   * Required handler / headers not yet created
+function DF:ComputeRaidContainerCompensation()
+    if not DF.raidPositionHandler then return 0, 0 end
+    if not DF.raidSeparatedHeaders then return 0, 0 end
+
+    local db = DF:GetRaidDB()
+    if not db then return 0, 0 end
+    if not db.raidUseGroups then return 0, 0 end
+    if (db.raidGroupAnchor or "START") ~= "CENTER" then return 0, 0 end
+
+    -- Mirror the snippet: a group is "populated" when its child count > 0.
+    -- Read counts from the same handler attributes the snippet reads, so the
+    -- compensation always agrees with the snippet's view of the world.
+    local handler = DF.raidPositionHandler
+    local numPopulated = 0
+    for i = 1, 8 do
+        local count = handler:GetAttribute("group" .. i .. "count") or 0
+        if count > 0 then numPopulated = numPopulated + 1 end
+    end
+    if numPopulated == 0 then return 0, 0 end
+
+    -- Mirror the snippet's totalHeight / populatedHeight calculation.
+    local groupsPerRow = db.raidGroupsPerRow or 8
+    if groupsPerRow < 1 then groupsPerRow = 1 end
+    if groupsPerRow > 8 then groupsPerRow = 8 end
+
+    local growDirection = db.growDirection or "HORIZONTAL"
+    local isHorizontal = (growDirection == "HORIZONTAL")
+    local frameWidth = db.frameWidth or 80
+    local frameHeight = db.frameHeight or 40
+    local spacing = db.frameSpacing or 2
+    local rowColSpacing = db.raidRowColSpacing or 30
+
+    local groupHeight, groupWidth
+    if isHorizontal then
+        groupWidth = frameWidth
+        groupHeight = 5 * frameHeight + 4 * spacing
+    else
+        groupWidth = 5 * frameWidth + 4 * spacing
+        groupHeight = frameHeight
+    end
+
+    -- popRows = ceil(numPopulated / groupsPerRow)
+    local popRem = numPopulated % groupsPerRow
+    local popRows = (numPopulated - popRem) / groupsPerRow
+    if popRem > 0 then popRows = popRows + 1 end
+
+    -- popRows == 1 is the reference state — compensation is zero there. Skip the
+    -- rest to avoid pointless arithmetic and to match existing behaviour exactly
+    -- when the bug doesn't apply.
+    if popRows <= 1 then return 0, 0 end
+
+    -- The drift dimension depends on growDirection: HORIZONTAL = vertical drift,
+    -- VERTICAL = horizontal drift. (Per the snippet's totalHeight/populatedHeight
+    -- vs totalWidth/populatedWidth selection at lines 2492-2498.)
+    local groupDim, populatedDim
+    if isHorizontal then
+        groupDim = groupHeight
+        populatedDim = popRows * groupHeight + (popRows - 1) * rowColSpacing
+    else
+        groupDim = groupWidth
+        populatedDim = popRows * groupWidth + (popRows - 1) * rowColSpacing
+    end
+
+    -- Compensation = (groupDim - populatedDim) / 2. This is yStart_now minus
+    -- yStart_at_popRows1, so popRows=1 yields zero (existing behaviour preserved)
+    -- and popRows>1 yields a negative offset that shifts the container in the
+    -- direction opposite to the snippet's content drift. Net visual: visible
+    -- content's TOP edge stays where popRows=1 layout placed it for every
+    -- larger populated count.
+    local compensation = (groupDim - populatedDim) / 2
+    if isHorizontal then
+        return 0, compensation
+    else
+        return compensation, 0
+    end
+end
+
 function DF:CreateRaidPositionHandler()
     if DF.raidPositionHandler then return end
     if not DF.raidContainer then return end

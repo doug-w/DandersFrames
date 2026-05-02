@@ -2145,24 +2145,42 @@ function DF:UpdateRaidContainerPosition()
     local x, y = db.raidAnchorX or 0, db.raidAnchorY or 0
     local scale = db.frameScale or 1.0
 
+    -- CENTER-anchor compensation: when raidGroupAnchor == "CENTER", the secure
+    -- positioning snippet shifts visible groups inside the container by
+    -- (totalHeight - populatedHeight) / 2 to centre the visible content. As
+    -- populated rows grow with the roster, that offset shrinks and visible
+    -- frames snap upward inside the container. We undo the visual snap by
+    -- shifting the container itself by the same magnitude. The user's saved
+    -- anchor (x, y) is preserved as the centroid of the visible content. (#867)
+    local dx, dy = 0, 0
+    if DF.ComputeRaidContainerCompensation then
+        dx, dy = DF:ComputeRaidContainerCompensation()
+    end
+    local cx, cy = x + dx, y + dy
+
     if DF.Debug then
-        DF:Debug("RAIDPOS", "UpdateRaidContainerPosition @ %s : applying (%.1f,%.1f) scale=%.3f combat=%s",
-            ShortCaller(3), x, y, scale, tostring(InCombatLockdown()))
+        if dx ~= 0 or dy ~= 0 then
+            DF:Debug("RAIDPOS", "UpdateRaidContainerPosition @ %s : applying (%.1f,%.1f) +comp(%.1f,%.1f) -> (%.1f,%.1f) scale=%.3f combat=%s",
+                ShortCaller(3), x, y, dx, dy, cx, cy, scale, tostring(InCombatLockdown()))
+        else
+            DF:Debug("RAIDPOS", "UpdateRaidContainerPosition @ %s : applying (%.1f,%.1f) scale=%.3f combat=%s",
+                ShortCaller(3), x, y, scale, tostring(InCombatLockdown()))
+        end
     end
 
     DF.raidContainer:SetScale(scale)
     DF.raidContainer:ClearAllPoints()
-    DF.raidContainer:SetPoint("CENTER", UIParent, "CENTER", x / scale, y / scale)
+    DF.raidContainer:SetPoint("CENTER", UIParent, "CENTER", cx / scale, cy / scale)
 
-    -- Also update mover if visible
-    -- Raid mover is parented to UIParent, needs explicit scale + compensation
+    -- Mover/test container do NOT get the compensation: the mover represents
+    -- the user's saved position (centroid), and the test container has no
+    -- secure snippet running so populated-row drift never happens there.
     if DF.raidMoverFrame and DF.raidMoverFrame:IsShown() then
         DF.raidMoverFrame:SetScale(scale)
         DF.raidMoverFrame:ClearAllPoints()
         DF.raidMoverFrame:SetPoint("CENTER", UIParent, "CENTER", x / scale, y / scale)
     end
 
-    -- Also update test container if visible
     if DF.testRaidContainer then
         DF.testRaidContainer:SetScale(scale)
         DF.testRaidContainer:ClearAllPoints()
