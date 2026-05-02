@@ -1,26 +1,30 @@
 local addonName, DF = ...
-DF.BUILD_DATE = "2026-04-29T12:22:32Z"
+DF.BUILD_DATE = "2026-05-02T11:43:43Z"
 DF.RELEASE_CHANNEL = "alpha"
 DF.CHANGELOG_TEXT = [===[
 # DandersFrames Changelog
 
-## [Unreleased]
+## [4.3.7] - 2026-05-02
+
+### Bug Fixes
+
+* (Raid Frames) Fix raid frames jumping upward when group composition changes with Groups Grow From set to Center. Previously the visible frames could shoot off the top of the screen each time a player joined a new group, requiring a Groups Grow From toggle to recover.
+
+## [4.3.6] - 2026-04-30
 
 ### Improvements
 
 * (Click Casting) Improved mouseover detection on hovered unit frames after a Blizzard API fix.
 * (Click Casting) The conflict popup for Clique and Clicked now also appears when switching to a click-cast profile that turns click casting on.
 * (Boss Debuffs) Updated the info banner to clarify that boss debuffs trigger dispel overlays in Hybrid or Blizzard mode.
-* (Boss Debuffs) Added a Size Adjust slider for the Blizzard dispel overlay so the gradient can extend past or shrink inside the frame edges.
+* (Boss Debuffs) Added an Inset slider for the Blizzard dispel overlay so the gradient can extend past or shrink inside the frame edges.
 * (Boss Debuffs) Replaced separate Icon Width and Icon Height sliders with a single Icon Size slider. Existing settings carry over to the larger of your two old values.
 * (Boss Debuffs) Added an Open Edit Mode button to the Blizzard Overlay settings so you can preview the Blizzard dispel overlay live.
 
-### Changes
-
-* (Boss Debuffs) Removed the legacy Frame Border Overlay (the container overlay introduced in TWW covers the same case better).
-
 ### Bug Fixes
 
+* (Pet Frames) Fix Lua error spam during boss pulls when a pet is in the group.
+* (Status Icons) Fix Lua error spam when the Status Icon font outline is set to "None".
 * (Update Notification) Fix "You aren't in a party." and "You aren't in a raid." chat spam in LFG dungeons, LFR, scenarios, and battlegrounds.
 * (Boss Debuffs) Fix icons sometimes staying invisible after a transient registration hiccup until you fully reload.
 * (Boss Debuffs) Fix icons not rendering at certain size combinations.
@@ -28,6 +32,8 @@ DF.CHANGELOG_TEXT = [===[
 * (Click Casting) Fix target click-cast bindings on DandersFrames hitting the /target name range limit.
 * (Boss Debuffs) Surface Blizzard private aura API errors instead of silently swallowing them.
 * (Boss Debuffs) Fix icons sometimes rendering behind the unit frame after a re-register, even with frame level raised.
+* (Aura Designer) Reduce GUI lag when opening Aura Designer with many configured effects.
+* (Dispel Overlay) Fix dispel type icons not fading when a unit goes out of range with element-specific alpha enabled.
 
 ## [4.3.5] - 2026-04-26
 
