@@ -1039,11 +1039,14 @@ function Indicators:ApplyHealthBar(frame, config, auraData)
     local overlay = GetOrCreateTintOverlay(frame)
     if overlay then
         overlay:SetStatusBarColor(r, g, b, blend)
-        overlay:Show()
-        -- Sync fill with current health
+        -- Snap fill to current health before showing so the bar doesn't animate
+        -- from near-empty to the correct position (ExponentialEaseOut + the
+        -- min/max changing from the creation default of 0-1 to 0-maxHealth
+        -- makes the stored value of 1 render as ~0% until the smooth completes).
         if DF.UpdateADTintHealth then
-            DF:UpdateADTintHealth(frame)
+            DF:UpdateADTintHealth(frame, true)  -- true = skip smooth interpolation
         end
+        overlay:Show()
     end
 
     -- ========================================
@@ -1116,11 +1119,13 @@ end
 -- Update tint overlay fill to match current health.
 -- Called from UpdateUnitFrame and UpdateHealthFast (same pattern as
 -- DF:UpdateDispelGradientHealth and DF:UpdateMyBuffGradientHealth).
-function DF:UpdateADTintHealth(frame)
+function DF:UpdateADTintHealth(frame, skipSmooth)
     if not frame or not frame.dfAD then return end
 
     local overlay = frame.dfAD.tintOverlay
-    if not overlay or not overlay:IsShown() then return end
+    -- Allow being called before Show() (skipSmooth path from ApplyHealthBar)
+    if not overlay then return end
+    if not skipSmooth and not overlay:IsShown() then return end
 
     local unit = frame.unit
     if not unit or not UnitExists(unit) then return end
@@ -1149,7 +1154,9 @@ function DF:UpdateADTintHealth(frame)
 
     overlay:SetMinMaxValues(0, maxHealth)
 
-    local smoothEnabled = db and db.smoothBars
+    -- skipSmooth: always snap when called from ApplyHealthBar before Show()
+    -- so the bar doesn't animate from its default position to actual health.
+    local smoothEnabled = (not skipSmooth) and db and db.smoothBars
     if smoothEnabled and Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.ExponentialEaseOut then
         overlay:SetValue(currentHealth, Enum.StatusBarInterpolation.ExponentialEaseOut)
     else
