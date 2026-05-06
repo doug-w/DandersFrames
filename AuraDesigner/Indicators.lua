@@ -3411,7 +3411,11 @@ function Indicators:HideUnusedBars(frame, activeMap)
             bar.dfAD_unit = nil
             bar.dfAD_duration = 0
             bar.dfAD_expirationTime = 0
-            bar.dfAD_colorCurve = nil
+            -- dfAD_colorCurve intentionally NOT cleared — it is static config set by
+            -- ConfigureBar and reused across aura applications. Clearing it here caused
+            -- colour-by-time and expiring colour overrides to stop working after the
+            -- first cast because ConfigureBar doesn't re-run when adConfigVersion is
+            -- unchanged. dfAD_auraInstanceID = nil is sufficient to guard the OnUpdate.
             bar.dfAD_usedTimerDuration = false
             if bar.durationCooldown then
                 bar.durationCooldown:Hide()
