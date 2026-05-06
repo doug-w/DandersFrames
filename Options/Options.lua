@@ -1416,10 +1416,8 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         for i = 1, 8 do
             local groupIndex = i
             local overrideKey = "raidGroupVisible_" .. i
-            groupVisGroup:AddWidget(GUI:CreateCheckbox(self.child, L["Group"] .. " " .. i, nil, nil, 
+            groupVisGroup:AddWidget(GUI:CreateCheckbox(self.child, L["Group"] .. " " .. i, nil, nil,
                 function()
-                    -- Update test mode frames if active
-                    if DF.raidTestMode then DF:UpdateRaidTestFrames() end
                     if db.raidUseGroups then
                         -- Separated mode
                         DF:UpdateRaidHeaderVisibility(); DF:PositionRaidHeaders()
@@ -1430,6 +1428,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                             DF.FlatRaidFrames:UpdateSorting()
                         end
                     end
+                    UpdateFrames()
                 end,
                 function() return db.raidGroupVisible[groupIndex] ~= false end,
                 function(val) db.raidGroupVisible[groupIndex] = val end,
@@ -1450,6 +1449,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             if DF.UpdatePlayerGroupTracking then DF:UpdatePlayerGroupTracking() end
             if DF.UpdateRaidGroupOrderAttributes then DF:UpdateRaidGroupOrderAttributes() end
             DF:TriggerRaidPosition()
+            UpdateFrames()
         end), 25)
         playerGroupFirstCheck.tooltip = L["When enabled, the group you are in will always be displayed first."]
         
@@ -1461,8 +1461,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         local groupOrderWidget = GUI:CreateGroupOrderList(self.child, db, "raidGroupDisplayOrder", function()
             if DF.UpdateRaidGroupOrderAttributes then DF:UpdateRaidGroupOrderAttributes() end
             DF:TriggerRaidPosition()
-            -- Update test mode frames if active
-            if DF.raidTestMode then DF:UpdateRaidTestFrames() end
+            UpdateFrames()
         end)
         groupOrderGroup:AddWidget(groupOrderWidget, 230)
         
