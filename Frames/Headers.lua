@@ -6199,8 +6199,24 @@ function DF:ApplyArenaHeaderSorting()
     if InCombatLockdown() then return end
     if not DF.arenaHeader then return end
 
-    -- FrameSort integration: yield sorting to FrameSort when active
-    if DF:IsFrameSortActive() then return end
+    -- FrameSort integration: yield sorting to FrameSort when active.
+    -- But first clear any stale nameList from the previous Solo Shuffle round —
+    -- if we just return, SecureGroupHeaderTemplate keeps filtering by the old
+    -- teammate's name, hiding the new one. Clearing to INDEX shows all current
+    -- units immediately, then RequestSort lets FrameSort rebuild nameList.
+    if DF:IsFrameSortActive() then
+        DF.arenaHeader:SetAttribute("nameList", nil)
+        DF.arenaHeader:SetAttribute("sortMethod", "INDEX")
+        DF.arenaHeader:SetAttribute("groupBy", nil)
+        DF.arenaHeader:SetAttribute("groupingOrder", nil)
+        DF.arenaHeader:SetAttribute("groupFilter", nil)
+        DF.arenaHeader:SetAttribute("roleFilter", nil)
+        DF.arenaHeader:SetAttribute("strictFiltering", nil)
+        if DF.FrameSort and DF.FrameSort.RequestSort then
+            DF.FrameSort:RequestSort()
+        end
+        return
+    end
 
     local db = DF:GetDB()
     local selfPosition = db.sortSelfPosition or "FIRST"

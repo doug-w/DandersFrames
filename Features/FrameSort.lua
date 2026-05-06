@@ -56,7 +56,8 @@ local function UnitsToNameList(units)
     wipe(namesBuf)
     for i = 1, #units do
         local name = GetUnitName(units[i], true)
-        if name then
+        -- Guard against secret values (Midnight API restriction on some unit names)
+        if type(name) == "string" then
             namesBuf[#namesBuf + 1] = name
         end
     end
@@ -130,7 +131,7 @@ local function SortGroupedRaidFrames(units)
             wipe(groupUnitsBuf)
             for raidIndex = 1, GetNumGroupMembers() do
                 local name, _, subgroup = GetRaidRosterInfo(raidIndex)
-                if name and subgroup == groupIndex then
+                if type(name) == "string" and subgroup == groupIndex then
                     local unitToken = "raid" .. raidIndex
                     groupUnitsBuf[#groupUnitsBuf + 1] = {
                         name = name,
@@ -168,9 +169,11 @@ end
 
 -- Sort arena frames using FrameSort's unit order
 -- Note: arena header shows the player's own team (raid1-5), not opponents
+-- No IsVisible() guard: SetAttribute works on hidden frames, so we pre-set nameList
+-- even before the header is shown (e.g. after a reload in the arena prep room).
+-- The header picks it up as soon as it becomes visible.
 local function SortArenaFrames(units)
     if not DF.arenaHeader then return false end
-    if not DF.arenaHeader:IsVisible() then return false end
 
     local nameList = UnitsToNameList(units)
     if nameList == "" then return false end
@@ -249,6 +252,13 @@ local provider = {
     Sort = OnFrameSortRequest,
     Init = function() end,  -- No-op: FrameSort calls provider:Init() on all providers
 }
+
+-- Allow other modules to trigger a FrameSort sort (e.g. on arena roster change)
+function FrameSortMod:RequestSort()
+    if registered and not InCombatLockdown() then
+        OnFrameSortRequest(provider)
+    end
+end
 
 -- Check if the setting is enabled (without requiring fs to be set)
 local function IsFrameSortSettingEnabled()
