@@ -2804,7 +2804,7 @@ local function CreateADBar(frame, auraName)
                         end
                     end
                 end
-                self:SetStatusBarColor(barR, barG, barB, 1)
+                self:SetStatusBarColor(barR, barG, barB, self.dfAD_fillA or 1)
             end
         end
     end)
@@ -2872,6 +2872,7 @@ function Indicators:ConfigureBar(frame, config, defaults, auraName, priority)
     local fillR = fillColor and (fillColor[1] or fillColor.r) or 1
     local fillG = fillColor and (fillColor[2] or fillColor.g) or 1
     local fillB = fillColor and (fillColor[3] or fillColor.b) or 1
+    local fillA = fillColor and (fillColor[4] or fillColor.a) or 1
 
     local bgColor = config.bgColor
     if bgColor and bar.bg then
@@ -2895,6 +2896,7 @@ function Indicators:ConfigureBar(frame, config, defaults, auraName, priority)
     bar.dfAD_fillR = fillR
     bar.dfAD_fillG = fillG
     bar.dfAD_fillB = fillB
+    bar.dfAD_fillA = fillA
 
     -- Hide Icon flag (bars don't have icons but stored for consistency)
     local hideIcon = config.hideIcon; if hideIcon == nil then hideIcon = defaults and defaults.hideIcon end
@@ -3221,6 +3223,7 @@ function Indicators:UpdateBar(frame, config, auraData, defaults, auraName, prior
     local fillR = bar.dfAD_fillR or 1
     local fillG = bar.dfAD_fillG or 1
     local fillB = bar.dfAD_fillB or 1
+    local fillA = bar.dfAD_fillA or 1
 
     if bar.dfAD_colorCurve and frame.unit and auraData.auraInstanceID
        and C_UnitAuras and C_UnitAuras.GetAuraDuration then
@@ -3235,13 +3238,13 @@ function Indicators:UpdateBar(frame, config, auraData, defaults, auraName, prior
             if result and result.r then
                 bar:SetStatusBarColor(result.r, result.g, result.b)
             else
-                bar:SetStatusBarColor(fillR, fillG, fillB, 1)
+                bar:SetStatusBarColor(fillR, fillG, fillB, fillA)
             end
         else
-            bar:SetStatusBarColor(fillR, fillG, fillB, 1)
+            bar:SetStatusBarColor(fillR, fillG, fillB, fillA)
         end
     else
-        bar:SetStatusBarColor(fillR, fillG, fillB, 1)
+        bar:SetStatusBarColor(fillR, fillG, fillB, fillA)
     end
 
     -- ========================================

@@ -1,5 +1,11 @@
 # DandersFrames Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+
+* (Aura Designer) Fix bar fill colour alpha having no effect. The alpha channel of the fill colour is now applied to bar indicators in live frames and updates immediately when changed in settings.
+
 ## [4.3.7] - 2026-05-02
 
 ### Bug Fixes

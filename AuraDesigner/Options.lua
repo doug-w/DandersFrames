@@ -2569,8 +2569,8 @@ local function BuildTypeContent(parent, typeKey, auraName, width, optProxy, yOff
         AddWidget(copyContainer, 38)
     end
 
-    -- Color picker callback shorthand
-    local function RPL() if RefreshPreviewLightweight then RefreshPreviewLightweight() end end
+    -- Color picker callback shorthand — refreshes both the AD preview and live frames
+    local function RPL() if RefreshPreviewLightweight then RefreshPreviewLightweight() end RefreshLiveFramesThrottled() end
 
     if typeKey == "icon" then
         -- Position
