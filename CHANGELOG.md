@@ -4,7 +4,13 @@
 
 ### Bug Fixes
 
-* (Aura Designer) Fix bar fill colour alpha having no effect. The alpha channel of the fill colour is now applied to bar indicators in live frames and updates immediately when changed in settings.
+* (Aura Designer) Fix bar fill colour alpha having no effect. The alpha channel of the fill colour is now applied to bar indicators in live frames and updates immediately when changed in settings. (PR #49 by @Krathe82)
+* (Aura Designer) Fix several settings — fill colour, border, duration text, expiring colour, Colour Bar by Duration — not applying to live frames without a /reload. (PR #45 by @Krathe82)
+* (Aura Designer) Fix bar Colour by Duration and Expiring Colour Override resetting to grey on the second and subsequent casts of an aura. (PR #47 by @Krathe82)
+* (Aura Designer) Fix health bar indicators briefly animating from empty when an aura is applied with Smooth Bars enabled. (PR #48 by @Krathe82)
+* (Defensive Icons) Fix duration text "Color by Time Remaining" not updating once an aura is applied. The colour now transitions green → yellow → orange → red as the timer ticks down. The Duration Color and Color by Time Remaining settings have also moved into the Duration Text section where they belong. (PR #46 by @Krathe82)
+* (AFK Icon) Fix AFK timer not incrementing in raids and Mythic+. The timer now ticks correctly in all group types. (PR #41 by @Krathe82)
+* Removed the "Only Dispellable Debuffs" setting from the Debuffs page. The setting no longer affected our display since 12.0.5 and has been removed. (PR #42 by @Krathe82)
 
 ## [4.3.7] - 2026-05-02
 
