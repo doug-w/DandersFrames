@@ -1,6 +1,6 @@
 # DandersFrames Changelog
 
-## [Unreleased]
+## [4.3.7] - 2026-05-07
 
 ### Bug Fixes
 
@@ -11,11 +11,6 @@
 * (Defensive Icons) Fix duration text "Color by Time Remaining" not updating once an aura is applied. The colour now transitions green → yellow → orange → red as the timer ticks down. The Duration Color and Color by Time Remaining settings have also moved into the Duration Text section where they belong. (PR #46 by @Krathe82)
 * (AFK Icon) Fix AFK timer not incrementing in raids and Mythic+. The timer now ticks correctly in all group types. (PR #41 by @Krathe82)
 * Removed the "Only Dispellable Debuffs" setting from the Debuffs page. The setting no longer affected our display since 12.0.5 and has been removed. (PR #42 by @Krathe82)
-
-## [4.3.7] - 2026-05-02
-
-### Bug Fixes
-
 * (Raid Frames) Fix raid frames jumping upward when group composition changes with Groups Grow From set to Center. Previously the visible frames could shoot off the top of the screen each time a player joined a new group, requiring a Groups Grow From toggle to recover.
 * (Test Mode) Fix raid test mode showing the wrong layout when Players Grow From is set to End. Test mode now mirrors what live raid frames look like.
 * (Raid Frames) Fix raid groups flipping position on every GUI click when Players Grow From and Groups Grow From are both set to End. The combined setting now produces a stable layout that matches between settings panel and live frames.
