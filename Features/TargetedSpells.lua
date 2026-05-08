@@ -4171,8 +4171,10 @@ local function TargetedList_OnTargetChange(casterUnit)
         if not TargetedList_CastTargetIsPartyMember(casterUnit) then
             -- New target isn't a party member — drop the bar
             activeTargetedListCasts[casterUnit] = nil
-            if DF._TargetedListRender then DF._TargetedListRender() end
         end
+        -- Always re-render when the caster retargets (bar kept or dropped)
+        -- so the self-target overlay reflects the new target immediately.
+        if DF._TargetedListRender then DF._TargetedListRender() end
     elseif not (party and party.targetedListShowUntargeted) then
         -- No target and untargeted display is off — drop
         activeTargetedListCasts[casterUnit] = nil
@@ -4361,14 +4363,34 @@ local function TargetedList_BuildBar(parent)
     progress:SetValue(0)
     bar.progress = progress
 
+    -- Self-target color overlay. Parented to bar (plain Frame) rather
+    -- than progress (StatusBar) to avoid StatusBar child rendering quirks
+    -- in Midnight 12.0. Anchored to progress so it tracks its bounds.
+    -- Starts at alpha 0 (invisible); SetAlphaFromBoolean controls
+    -- visibility so we avoid the Show/Hide + secret-taint interaction.
+    local selfFrame = CreateFrame("Frame", nil, bar)
+    selfFrame:SetAllPoints(progress)
+    selfFrame:SetFrameLevel(bar:GetFrameLevel() + 3)
+    selfFrame:SetAlpha(0)
+    local selfTex = selfFrame:CreateTexture(nil, "OVERLAY")
+    selfTex:SetAllPoints()
+    bar.selfTargetFrame = selfFrame
+    bar.selfTargetTex = selfTex
+
+    -- Text container frame above the self-target overlay so text is
+    -- never obscured by it. Also parented to bar and anchored to progress.
+    local textFrame = CreateFrame("Frame", nil, bar)
+    textFrame:SetAllPoints(progress)
+    textFrame:SetFrameLevel(selfFrame:GetFrameLevel() + 1)
+
     -- Text overlays on the progress bar. Anchor / offset / font are
     -- applied by ApplyBarAppearance and ApplyTextLayout per render.
-    local spellName = progress:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
+    local spellName = textFrame:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
     spellName:SetJustifyV("MIDDLE")
     spellName:SetWordWrap(false)
     bar.spellName = spellName
 
-    local targetName = progress:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
+    local targetName = textFrame:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
     targetName:SetJustifyV("MIDDLE")
     targetName:SetWordWrap(false)
     bar.targetName = targetName
@@ -4377,7 +4399,7 @@ local function TargetedList_BuildBar(parent)
     -- OnUpdate instead of Blizzard's native Cooldown countdown, so that
     -- custom fonts can be applied. The remaining time is read from the
     -- duration object stored on the bar via GetRemainingDuration().
-    local durationText = progress:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
+    local durationText = textFrame:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
     durationText:SetJustifyV("MIDDLE")
     durationText:SetWordWrap(false)
     bar.duration = durationText
@@ -4413,7 +4435,7 @@ local function TargetedList_BuildBar(parent)
     -- Interrupter name FontString — shown during interrupted-flash
     -- fade with the name of who kicked the cast. Overlays spell name
     -- and target name (which are hidden during the flash).
-    local interruptText = progress:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
+    local interruptText = textFrame:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
     interruptText:SetPoint("CENTER", progress, "CENTER", 0, 0)
     interruptText:SetJustifyH("CENTER")
     interruptText:SetJustifyV("MIDDLE")
@@ -4430,18 +4452,6 @@ local function TargetedList_BuildBar(parent)
     highlight:SetFrameLevel(bar:GetFrameLevel() + 5)
     highlight:Hide()
     bar.highlightFrame = highlight
-
-    -- Self-target color overlay. A frame wrapping a colored texture,
-    -- shown/hidden via SetShownFromBoolean (secret-safe sink) when
-    -- the enemy cast targets the player.
-    local selfFrame = CreateFrame("Frame", nil, progress)
-    selfFrame:SetAllPoints()
-    selfFrame:SetFrameLevel(progress:GetFrameLevel() + 1)
-    selfFrame:Hide()
-    local selfTex = selfFrame:CreateTexture(nil, "OVERLAY")
-    selfTex:SetAllPoints()
-    bar.selfTargetFrame = selfFrame
-    bar.selfTargetTex = selfTex
 
     return bar
 end
@@ -4634,6 +4644,9 @@ local function TargetedList_ResetBar(pool, bar)
     if bar.highlightFrame then
         bar.highlightFrame:Hide()
     end
+    if bar.selfTargetFrame then
+        bar.selfTargetFrame:SetAlpha(0)
+    end
     if bar.interruptText then
         bar.interruptText:SetText("")
         bar.interruptText:Hide()
@@ -4673,6 +4686,37 @@ local targetedListBarPool = {
 local function TargetedList_EnsureBarPool()
     TargetedList_EnsureContainer()
     return targetedListBarPool
+end
+
+-- ------------------------------------------------------------
+-- Self-target overlay refresh
+-- ------------------------------------------------------------
+-- Extracted into a standalone helper so it can be re-evaluated on
+-- every render pass (not just at initial bar assignment). This is
+-- important because a caster can change targets mid-cast, which
+-- would otherwise leave the overlay stale until the bar is released.
+-- Called from both ApplyBarContent (initial assignment) and from the
+-- render loop (refresh for all active bars).
+local function TargetedList_ApplySelfTargetOverlay(bar, rec, party)
+    if not bar.selfTargetFrame then return end
+    -- Only called for non-fading bars. Fading bars are excluded by the
+    -- Step 3.5 loop guard and fade the overlay via bar:SetAlpha naturally.
+    if party and party.targetedListSelfTargetColorEnabled then
+        local sc = party.targetedListSelfTargetColor or {r = 1, g = 0.85, b = 0.1, a = 0.4}
+        bar.selfTargetTex:SetColorTexture(sc.r, sc.g, sc.b, sc.a or 0.4)
+        if rec.isTestCast then
+            bar.selfTargetFrame:SetAlpha(rec.testIsTargetingPlayer and 1 or 0)
+        elseif bar.selfTargetFrame.SetAlphaFromBoolean then
+            -- Live bars: UnitIsUnit returns a secret-tainted boolean;
+            -- pipe through SetAlphaFromBoolean (secret-safe sink).
+            local isTargetingPlayer = UnitIsUnit(rec.casterUnit .. "target", "player")
+            bar.selfTargetFrame:SetAlphaFromBoolean(isTargetingPlayer, 1, 0)
+        else
+            bar.selfTargetFrame:SetAlpha(0)
+        end
+    else
+        bar.selfTargetFrame:SetAlpha(0)
+    end
 end
 
 -- ------------------------------------------------------------
@@ -4866,24 +4910,10 @@ local function TargetedList_ApplyBarContent(bar, activeRec)
         end
     end
 
-    -- Self-target color overlay (non-fading path only).
-    if not activeRec.fadingStartedAt then
-        if party and party.targetedListSelfTargetColorEnabled
-           and bar.selfTargetFrame then
-            local sc = party.targetedListSelfTargetColor or {r = 1, g = 0.85, b = 0.1, a = 0.4}
-            bar.selfTargetTex:SetColorTexture(sc.r, sc.g, sc.b, sc.a or 0.4)
-            if isTest then
-                -- Test bars use a clean boolean field
-                bar.selfTargetFrame:SetShown(activeRec.testIsTargetingPlayer or false)
-            elseif bar.selfTargetFrame.SetShownFromBoolean then
-                -- Live bars: UnitIsUnit returns a secret-tainted boolean
-                local isTargetingPlayer = UnitIsUnit(casterUnit .. "target", "player")
-                bar.selfTargetFrame:SetShownFromBoolean(isTargetingPlayer, true, false)
-            end
-        elseif bar.selfTargetFrame then
-            bar.selfTargetFrame:Hide()
-        end
-    end
+    -- Self-target color overlay — delegate to the shared helper so the
+    -- same evaluation logic runs here (initial assignment) and on every
+    -- subsequent render pass (to catch mid-cast target changes).
+    TargetedList_ApplySelfTargetOverlay(bar, activeRec, party)
 end
 
 -- ------------------------------------------------------------
@@ -5175,6 +5205,9 @@ local function TargetedList_Render()
         if rec.fadingStartedAt then
             local bar = casterToBar[unit]
             if bar then
+                -- selfTargetFrame is a child of bar, so bar:SetAlpha(pct)
+                -- below fades the overlay naturally — no explicit alpha
+                -- reset needed here.
                 local elapsed = now - rec.fadingStartedAt
                 local dur = rec.fadingDuration or 0.25
                 local pct = 1 - math.min(1, math.max(0, elapsed / dur))
@@ -5222,6 +5255,19 @@ local function TargetedList_Render()
                         bar.interruptText:Show()
                     end
                 end
+            end
+        end
+    end
+
+    -- Step 3.5: refresh self-target overlay for all non-fading bars.
+    -- Re-evaluating every render pass ensures the overlay reflects the
+    -- caster's CURRENT target, not just who they were targeting when
+    -- the bar was first assigned (casters can retarget mid-cast).
+    for unit, rec in pairs(activeTargetedListCasts) do
+        if not rec.fadingStartedAt then
+            local bar = casterToBar[unit]
+            if bar then
+                TargetedList_ApplySelfTargetOverlay(bar, rec, db)
             end
         end
     end

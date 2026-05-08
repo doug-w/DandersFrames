@@ -13,6 +13,7 @@
 * (Pinned Frames) Fix auras not appearing on pinned frames when the pinned unit is not shown in the main party or raid frames (e.g. yourself with "Hide Self from Party Frames" enabled). (PR #52 by Krathe)
 * (Aura Designer) Fix indicators briefly not firing on the first aura application after joining a group or entering a new zone. (PR #53 by Krathe)
 * (Aura Designer) Fix sound expire alert not re-triggering after a buff is refreshed and decays again. (PR #54 by Krathe)
+* (Targeted List) Fix self-target colour overlay obscuring cast bar text, occasionally appearing on bars not targeting the player, and snapping off instead of fading with the bar. (PR #55 by Krathe)
 
 ## [4.3.7] - 2026-05-07
 
