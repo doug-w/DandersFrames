@@ -1839,8 +1839,40 @@ local directModeActive = false
 
 function directModeSubscriber:OnUnitAura(event, unit, updateInfo)
     if not unit then return end
-    -- Only process units we care about (party/raid members with DF frames)
-    if not DF.unitFrameMap or not DF.unitFrameMap[unit] then return end
+    -- Only process units shown by DF frames (main frames or pinned frames).
+    -- Main frames: O(1) check via unitFrameMap.
+    -- Pinned frames are excluded from unitFrameMap (to avoid overwriting main
+    -- frame entries), so fall through and check them when unitFrameMap misses.
+    -- Common case: player unit when hidePlayerFrame = true — the player has no
+    -- main party frame but may be pinned, causing auras to never update on the
+    -- pinned frame without this check.
+    if not DF.unitFrameMap then return end
+    if not DF.unitFrameMap[unit] then
+        -- Fast bail: non-roster units (target, focus, nameplate, etc.) are
+        -- never shown by pinned party/raid frames.
+        if not IsRosterUnit(unit) then return end
+        -- Check if any enabled pinned header currently shows this unit.
+        -- SecureGroupHeaderTemplate assigns children contiguously, so we
+        -- break as soon as GetAttribute returns nil (no more children).
+        local shownInPinned = false
+        if DF.PinnedFrames and DF.PinnedFrames.initialized and DF.PinnedFrames.headers then
+            for setIndex = 1, 2 do
+                local header = DF.PinnedFrames.headers[setIndex]
+                if header and header:IsShown() then
+                    for i = 1, 40 do
+                        local child = header:GetAttribute("child" .. i)
+                        if not child then break end  -- children are contiguous
+                        if child.unit == unit then
+                            shownInPinned = true
+                            break
+                        end
+                    end
+                end
+                if shownInPinned then break end
+            end
+        end
+        if not shownInPinned then return end
+    end
 
     DF.AuraCacheStats.eventsSeen = DF.AuraCacheStats.eventsSeen + 1
 
@@ -1899,6 +1931,27 @@ function DF:DirectScanAllUnits()
     for unit in pairs(DF.unitFrameMap) do
         ScanUnitDirect(unit)
         TriggerAuraUpdateForUnit(unit)
+    end
+    -- Also scan units shown only in pinned frames (not in unitFrameMap).
+    -- Example: player unit when hidePlayerFrame = true. Without this pass the
+    -- aura cache for those units is empty until the first UNIT_AURA fires.
+    if DF.PinnedFrames and DF.PinnedFrames.initialized and DF.PinnedFrames.headers then
+        local scanned = {}  -- avoid double-scanning units already handled above
+        for setIndex = 1, 2 do
+            local header = DF.PinnedFrames.headers[setIndex]
+            if header and header:IsShown() then
+                for i = 1, 40 do
+                    local child = header:GetAttribute("child" .. i)
+                    if not child then break end  -- children are contiguous
+                    local unit = child.unit
+                    if unit and not DF.unitFrameMap[unit] and not scanned[unit] then
+                        scanned[unit] = true
+                        ScanUnitDirect(unit)
+                        TriggerAuraUpdateForUnit(unit)
+                    end
+                end
+            end
+        end
     end
 end
 

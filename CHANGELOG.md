@@ -1,5 +1,11 @@
 # DandersFrames Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+
+* (Pinned Frames) Fix auras not appearing on pinned frames when the pinned unit is not shown in the main party or raid frames (e.g. yourself with "Hide Self from Party Frames" enabled).
+
 ## [4.3.7] - 2026-05-07
 
 ### Bug Fixes
