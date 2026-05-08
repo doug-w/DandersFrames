@@ -1621,6 +1621,7 @@ L["Show When Missing"] = true
 L["Size & Orientation"] = true
 L["Sound"] = true
 L["Sound Alert"] = true
+L["Sound alerts only work when you are in a group."] = true
 L["Sound Alerts"] = true
 L["Spec:"] = true
 L["Square"] = true

@@ -2897,6 +2897,39 @@ local function BuildTypeContent(parent, typeKey, auraName, width, optProxy, yOff
     elseif typeKey == "sound" then
         -- Enable checkbox
         AddGroup(L["Sound Alert"], function(g)
+            -- Group-only warning banner
+            do
+                local topSpacer = CreateFrame("Frame", nil, parent)
+                topSpacer:SetHeight(4)
+                g:AddWidget(topSpacer, 4)
+
+                local banner = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+                banner:SetHeight(36)
+                banner:SetWidth(contentWidth - 10)
+                if not banner.SetBackdrop then Mixin(banner, BackdropTemplateMixin) end
+                banner:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+                banner:SetBackdropColor(0.25, 0.22, 0.10, 1)
+                banner:SetBackdropBorderColor(0.6, 0.55, 0.2, 0.6)
+
+                local icon = banner:CreateTexture(nil, "OVERLAY")
+                icon:SetPoint("LEFT", 8, 0)
+                icon:SetSize(18, 18)
+                icon:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\Icons\\warning")
+
+                local text = banner:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
+                text:SetPoint("LEFT", icon, "RIGHT", 7, 0)
+                text:SetPoint("RIGHT", banner, "RIGHT", -8, 0)
+                text:SetJustifyH("LEFT")
+                text:SetText(L["Sound alerts only work when you are in a group."])
+                text:SetTextColor(1, 0.82, 0)
+
+                g:AddWidget(banner, 36)
+
+                local spacer = CreateFrame("Frame", nil, parent)
+                spacer:SetHeight(6)
+                g:AddWidget(spacer, 6)
+            end
+
             g:AddWidget(GUI:CreateCheckbox(parent, L["Enable Sound Alert"], proxy, "enabled", function()
                 -- Stop sound immediately when disabled
                 if not proxy.enabled and DF.AuraDesigner.SoundEngine then
