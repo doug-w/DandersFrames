@@ -125,20 +125,20 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         btn:SetScript("OnClick", function()
             local mode = GUI.SelectedMode or "party"
             local dest = mode == "party" and L["Raid"] or L["Party"]
-            -- Show confirmation
-            StaticPopupDialogs["DANDERSFRAMES_COPY_SECTION"] = {
-                text = format(L["Copy %s settings to %s?"], sectionName, dest),
-                button1 = L["Copy"],
-                button2 = L["Cancel"],
-                OnAccept = function()
-                    DF:CopySectionSettings(prefixes, mode)
-                    if GUI.RefreshCurrentPage then GUI:RefreshCurrentPage() end
-                end,
-                timeout = 0,
-                whileDead = true,
-                hideOnEscape = true,
-            }
-            StaticPopup_Show("DANDERSFRAMES_COPY_SECTION")
+            DF:ShowPopupAlert({
+                title = format(L["Copy %s Settings"], sectionName),
+                message = format(L["Copy %s settings to %s?"], sectionName, dest),
+                buttons = {
+                    {
+                        label = L["Copy"],
+                        onClick = function()
+                            DF:CopySectionSettings(prefixes, mode)
+                            if GUI.RefreshCurrentPage then GUI:RefreshCurrentPage() end
+                        end,
+                    },
+                    { label = L["Cancel"] },
+                },
+            })
         end)
 
         -- Sync button event handlers
@@ -177,20 +177,21 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
                 else
                     local mode = GUI.SelectedMode or "party"
                     local dest = mode == "party" and L["Raid"] or L["Party"]
-                    StaticPopupDialogs["DANDERSFRAMES_LINK_SECTION"] = {
-                        text = format(L["Sync %s settings?\n\nThis will copy current %s settings to %s and keep them in sync."], sectionName, sectionName, dest),
-                        button1 = L["Sync"],
-                        button2 = L["Cancel"],
-                        OnAccept = function()
-                            DF.db.linkedSections[pageId] = true
-                            DF:CopySectionSettings(prefixes, mode)
-                            if GUI.RefreshCurrentPage then GUI:RefreshCurrentPage() end
-                        end,
-                        timeout = 0,
-                        whileDead = true,
-                        hideOnEscape = true,
-                    }
-                    StaticPopup_Show("DANDERSFRAMES_LINK_SECTION")
+                    DF:ShowPopupAlert({
+                        title = format(L["Sync: %s"], sectionName),
+                        message = format(L["Sync %s settings?\n\nThis will copy current %s settings to %s and keep them in sync."], sectionName, sectionName, dest),
+                        buttons = {
+                            {
+                                label = L["Sync"],
+                                onClick = function()
+                                    DF.db.linkedSections[pageId] = true
+                                    DF:CopySectionSettings(prefixes, mode)
+                                    if GUI.RefreshCurrentPage then GUI:RefreshCurrentPage() end
+                                end,
+                            },
+                            { label = L["Cancel"] },
+                        },
+                    })
                 end
             end)
         end
@@ -251,19 +252,20 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
         resetBtn:SetScript("OnClick", function()
             local mode = GUI.SelectedMode or "party"
             local m = (mode == "party") and L["Party"] or L["Raid"]
-            StaticPopupDialogs["DANDERSFRAMES_RESET_SECTION"] = {
-                text = format(L["Reset %s settings to defaults?\n\nThis only affects %s settings on the current %s mode. This cannot be undone."], sectionName, sectionName, m),
-                button1 = L["Reset"],
-                button2 = L["Cancel"],
-                OnAccept = function()
-                    DF:ResetSectionSettings(prefixes, mode)
-                    if GUI.RefreshCurrentPage then GUI:RefreshCurrentPage() end
-                end,
-                timeout = 0,
-                whileDead = true,
-                hideOnEscape = true,
-            }
-            StaticPopup_Show("DANDERSFRAMES_RESET_SECTION")
+            DF:ShowPopupAlert({
+                title = format(L["Reset: %s"], sectionName),
+                message = format(L["Reset %s settings to defaults?\n\nThis only affects %s settings on the current %s mode. This cannot be undone."], sectionName, sectionName, m),
+                buttons = {
+                    {
+                        label = L["Reset"],
+                        onClick = function()
+                            DF:ResetSectionSettings(prefixes, mode)
+                            if GUI.RefreshCurrentPage then GUI:RefreshCurrentPage() end
+                        end,
+                    },
+                    { label = L["Cancel"] },
+                },
+            })
         end)
 
         -- Initial update
@@ -295,7 +297,8 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
     -- Display > Visibility
     local pageVisibility = CreateSubTab("display", "display_visibility", L["Visibility"])
     BuildPage(pageVisibility, function(self, db, Add, AddSpace, AddSyncPoint)
-        
+        Add(CreateCopyButton(self.child, {"soloMode", "hidePlayerFrame", "hideDefaultPlayerFrame", "showMinimapButton", "restedIndicator"}, L["Visibility"], "display_visibility"), 25, 2)
+
         -- ===== FRAME DISPLAY GROUP (Column 1) =====
         local frameDisplayGroup = GUI:CreateSettingsGroup(self.child, 280)
         frameDisplayGroup:AddWidget(GUI:CreateHeader(self.child, L["Frame Display"]), 40)
@@ -1835,6 +1838,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
     -- General > Group Labels (Raid only, group-based layout only)
     local pageGroupLabels = CreateSubTab("general", "general_labels", L["Group Labels"])
     BuildPage(pageGroupLabels, function(self, db, Add, AddSpace, AddSyncPoint)
+        Add(CreateCopyButton(self.child, {"groupLabel"}, L["Group Labels"], "general_labels"), 25, 2)
         local function HideGroupLabelOptions(d)
             return GUI.SelectedMode ~= "raid" or not d.raidUseGroups or not d.groupLabelEnabled
         end
@@ -1911,6 +1915,7 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
     -- General > Pinned Frames
     local pagePinnedFrames = CreateSubTab("general", "general_pinnedframes", L["Pinned Frames"])
     BuildPage(pagePinnedFrames, function(self, db, Add, AddSpace, AddSyncPoint)
+        Add(CreateCopyButton(self.child, {"pinnedFrames"}, L["Pinned Frames"], "general_pinnedframes"), 25, 2)
         -- Constants
         local HIGHLIGHT_MAX_SETS = 2
         
