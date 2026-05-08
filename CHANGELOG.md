@@ -7,6 +7,7 @@
 * (Arena/Solo Shuffle) Fix teammate frames not updating between rounds when FrameSort is active. New teammates now appear correctly at the start of each round instead of showing the previous round's team. (PR #50 by Krathe)
 * (Aura Designer) Fix new indicators briefly appearing above the minimap until the strata setting was toggled. (PR #51 by Krathe)
 * (Pinned Frames) Fix auras not appearing on pinned frames when the pinned unit is not shown in the main party or raid frames (e.g. yourself with "Hide Self from Party Frames" enabled). (PR #52 by Krathe)
+* (Aura Designer) Fix indicators briefly not firing on the first aura application after joining a group or entering a new zone. (PR #53 by Krathe)
 
 ## [4.3.7] - 2026-05-07
 
