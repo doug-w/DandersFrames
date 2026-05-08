@@ -1,5 +1,11 @@
 # DandersFrames Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+
+* (Aura Designer) Fix indicators briefly not firing on the first aura application after joining a group or entering a new zone.
+
 ## [4.3.7] - 2026-05-07
 
 ### Bug Fixes

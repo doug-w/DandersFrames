@@ -229,39 +229,49 @@ function Provider:GetUnitAuras(unit, spec)
             end
         end
 
-    elseif GetUnitAuras then
+    else
         -- ------------------------------------------------------------
-        -- LEGACY FALLBACK — direct GetUnitAuras scan
+        -- CACHE BOOTSTRAP — synchronous scan when cache is cold
         -- ------------------------------------------------------------
-        -- TODO (post-Blizzard-removal, ~2026-04-15): delete this entire
-        -- else branch. It's only reachable when:
-        --   (a) Blizzard mode is active and DF.AuraCache[unit] has no
-        --       buffsByID (because CaptureAurasFromBlizzardFrame doesn't
-        --       populate the Fix A fields), or
-        --   (b) Direct mode edge case where Provider:GetUnitAuras fires
-        --       before the first UNIT_AURA event for a unit.
-        -- After Blizzard mode is removed, case (a) goes away and case
-        -- (b) can be handled by calling DF:ScanUnitFull(unit) here.
-        local filters = { "HELPFUL|PLAYER", "HARMFUL" }
-        for _, filter in ipairs(filters) do
-            local auras = GetUnitAuras(unit, filter, 100)
-            if auras then
-                for _, auraData in ipairs(auras) do
+        -- Reached when cache.hasFullScan is false (or cache is nil):
+        -- Direct mode edge case where GetUnitAuras fires before the
+        -- first UNIT_AURA event has been processed for this unit (e.g.
+        -- first HOT application on a fresh group member, or zone entry
+        -- before the 0.2s DirectModeRosterUpdate delay has elapsed).
+        --
+        -- Fix: populate the cache synchronously right now so this render
+        -- pass returns real data instead of empty. Subsequent calls take
+        -- the fast path above (hasFullScan is now true).
+        --
+        -- (The old GetUnitAuras legacy fallback that lived here has been
+        -- removed — GetUnitAuras no longer exists on Midnight 12.0+.)
+        if DF.ScanUnitFull and UnitExists(unit) then
+            DF:ScanUnitFull(unit)
+            -- Re-read cache after the scan
+            cache = DF.AuraCache and DF.AuraCache[unit]
+        end
+
+        if cache and cache.hasFullScan then
+            for id, auraData in pairs(cache.buffsByID) do
+                if not IsAuraFilteredOut or not IsAuraFilteredOut(unit, id, "HELPFUL|PLAYER") then
                     scannedCount = scannedCount + 1
                     if ClassifyAuraForSpec(result, unit, spec, auraData, lookup, forwardLookup) then
                         matchedCount = matchedCount + 1
                     end
                 end
             end
-        end
 
-        -- Self-only scan on player unit (legacy path)
-        if UnitIsUnit(unit, "player") then
-            local selfOnly = DF.AuraDesigner.SelfOnlySpellIDs and DF.AuraDesigner.SelfOnlySpellIDs[spec]
-            if selfOnly then
-                local selfAuras = GetUnitAuras(unit, "HELPFUL", 100)
-                if selfAuras then
-                    for _, auraData in ipairs(selfAuras) do
+            for id, auraData in pairs(cache.debuffsByID) do
+                scannedCount = scannedCount + 1
+                if ClassifyAuraForSpec(result, unit, spec, auraData, lookup, forwardLookup) then
+                    matchedCount = matchedCount + 1
+                end
+            end
+
+            if UnitIsUnit(unit, "player") then
+                local selfOnly = DF.AuraDesigner.SelfOnlySpellIDs and DF.AuraDesigner.SelfOnlySpellIDs[spec]
+                if selfOnly then
+                    for id, auraData in pairs(cache.buffsByID) do
                         local sid = auraData.spellId
                         if sid and not issecretvalue(sid) then
                             local auraName = selfOnly[sid]
