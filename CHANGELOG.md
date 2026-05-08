@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 * (Arena/Solo Shuffle) Fix teammate frames not updating between rounds when FrameSort is active. New teammates now appear correctly at the start of each round instead of showing the previous round's team. (PR #50 by Krathe)
+* (Aura Designer) Fix new indicators briefly appearing above the minimap until the strata setting was toggled. (PR #51 by Krathe)
 
 ## [4.3.7] - 2026-05-07
 

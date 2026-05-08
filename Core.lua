@@ -3442,6 +3442,22 @@ DF._MainEventDispatcher = function(self, event, arg1)
                 -- Ensure settings-panel font defaults exist on every profile
                 if profile.settingsFont        == nil then profile.settingsFont        = "Friz Quadrata TT" end
                 if profile.settingsFontOutline == nil then profile.settingsFontOutline = "" end
+
+                -- Backfill missing auraDesigner.defaults keys.
+                -- The top-level migration (pairs(PartyDefaults) above) skips auraDesigner
+                -- when the subtable already exists, leaving new nested keys un-migrated.
+                for _, mode in ipairs({ "party", "raid" }) do
+                    local ad = profile[mode] and profile[mode].auraDesigner
+                    if ad then
+                        if not ad.defaults then ad.defaults = {} end
+                        if ad.defaults.indicatorFrameStrata == nil then
+                            ad.defaults.indicatorFrameStrata = "INHERIT"
+                        end
+                        if ad.defaults.indicatorFrameLevel == nil then
+                            ad.defaults.indicatorFrameLevel = 30
+                        end
+                    end
+                end
             end
         end
 

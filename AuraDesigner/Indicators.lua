@@ -1396,6 +1396,9 @@ local function GetOrCreateADIcon(frame, auraName)
     -- Use the same icon creation as the rest of the addon
     local icon = DF:CreateAuraIcon(frame, 0, "BUFF")
     icon.dfAD_auraName = auraName
+    -- Set strata to the unit frame's strata so we don't inherit contentOverlay's
+    -- higher strata and show through game panels before Configure runs.
+    icon:SetFrameStrata(frame:GetFrameStrata())
 
     -- Store default settings for the aura timer system
     icon.showDuration = true
@@ -1434,8 +1437,11 @@ function Indicators:ConfigureIcon(frame, config, defaults, auraName, priority)
     local priorityBoost = math.floor((20 - (priority or 5)) / 4)  -- 0-5 range for tiebreaking
     icon:SetFrameLevel(math.max(0, baseLevel + level + priorityBoost))
 
-    -- Frame strata: per-indicator override, falls back to global default
-    local strata = config.frameStrata or (defaults and defaults.indicatorFrameStrata) or "HIGH"
+    -- Frame strata: per-indicator override, falls back to global default.
+    -- Fallback is "INHERIT" (not "HIGH") so that indicators without an explicit
+    -- saved strata (e.g. new indicators on old profiles missing indicatorFrameStrata)
+    -- correctly inherit the unit frame's strata (MEDIUM) rather than jumping to HIGH.
+    local strata = config.frameStrata or (defaults and defaults.indicatorFrameStrata) or "INHERIT"
     if strata ~= "INHERIT" then
         SafeSetFrameStrata(icon, frame, strata)
     else
@@ -2001,6 +2007,9 @@ local function CreateADSquare(frame, auraName)
     local sq = CreateFrame("Frame", nil, frame.contentOverlay or frame)
     sq:SetSize(8, 8)
     sq:SetFrameLevel((frame.contentOverlay or frame):GetFrameLevel() + 10)
+    -- Set strata to the unit frame's strata so we don't inherit contentOverlay's
+    -- higher strata and show through game panels before Configure runs.
+    sq:SetFrameStrata(frame:GetFrameStrata())
     sq.dfAD_auraName = auraName
 
     sq.border = sq:CreateTexture(nil, "BACKGROUND")
@@ -2069,8 +2078,9 @@ function Indicators:ConfigureSquare(frame, config, defaults, auraName, priority)
     local priorityBoost = math.floor((20 - (priority or 5)) / 4)  -- 0-5 range for tiebreaking
     sq:SetFrameLevel(math.max(0, baseLevel + level + priorityBoost))
 
-    -- Frame strata: per-indicator override, falls back to global default
-    local strata = config.frameStrata or (defaults and defaults.indicatorFrameStrata) or "HIGH"
+    -- Frame strata: per-indicator override, falls back to global default.
+    -- Fallback is "INHERIT" (not "HIGH") — see ConfigureIcon comment.
+    local strata = config.frameStrata or (defaults and defaults.indicatorFrameStrata) or "INHERIT"
     if strata ~= "INHERIT" then
         SafeSetFrameStrata(sq, frame, strata)
     else
@@ -2630,6 +2640,9 @@ local function CreateADBar(frame, auraName)
     bar:SetStatusBarTexture(DEFAULT_BAR_TEXTURE)
     bar:SetMinMaxValues(0, 1)
     bar:SetFrameLevel((frame.contentOverlay or frame):GetFrameLevel() + 10)
+    -- Set strata to the unit frame's strata so we don't inherit contentOverlay's
+    -- higher strata and show through game panels before Configure runs.
+    bar:SetFrameStrata(frame:GetFrameStrata())
     bar.dfAD_auraName = auraName
 
     -- Background texture
@@ -3021,8 +3034,9 @@ function Indicators:ConfigureBar(frame, config, defaults, auraName, priority)
     local priorityBoost = math.floor((20 - (priority or 5)) / 4)  -- 0-5 range for tiebreaking
     bar:SetFrameLevel(math.max(0, baseLevel + level + priorityBoost))
 
-    -- Frame strata: per-indicator override, falls back to global default
-    local strata = config.frameStrata or (defaults and defaults.indicatorFrameStrata) or "HIGH"
+    -- Frame strata: per-indicator override, falls back to global default.
+    -- Fallback is "INHERIT" (not "HIGH") — see ConfigureIcon comment.
+    local strata = config.frameStrata or (defaults and defaults.indicatorFrameStrata) or "INHERIT"
     if strata ~= "INHERIT" then
         SafeSetFrameStrata(bar, frame, strata)
     else
