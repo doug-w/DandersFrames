@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### New Features
+
+* **Reset Page button** — every settings page that has a Sync/Copy button now also has a red **Reset Page** button to the left of them. Clicking it resets only that page's settings on the current mode (Party or Raid) back to their built-in defaults, with a confirmation popup. Aura Designer and Click Casting have their own reset systems and are not part of this.
+
 ### Improvements
 
 * (Aura Designer) Sound indicator: "Missing Trigger" can now be toggled off so only the Expire Alert fires. Expire Alert now has its own Loop Interval and a Play Once option. Start Delay and Loop Interval no longer affect the Expire Alert. (PR #54 by Krathe)

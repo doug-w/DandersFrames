@@ -195,13 +195,84 @@ function DF:SetupGUIPages(GUI, CreateCategory, CreateSubTab, BuildPage)
             end)
         end
         
+        -- Reset to defaults button (red, destructive — leftmost in the trio).
+        -- Static red palette (no theme listener) so it visually flags as
+        -- destructive vs. the theme-coloured Copy/Sync buttons.
+        local resetBtn = CreateFrame("Button", nil, btn, "BackdropTemplate")
+        resetBtn:SetSize(115, 26)
+        if linkBtn then
+            resetBtn:SetPoint("RIGHT", linkBtn, "LEFT", -4, 0)
+        else
+            resetBtn:SetPoint("RIGHT", btn, "LEFT", -4, 0)
+        end
+
+        if not resetBtn.SetBackdrop then Mixin(resetBtn, BackdropTemplateMixin) end
+        resetBtn:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = "Interface\\Buttons\\WHITE8x8",
+            edgeSize = 1,
+        })
+        resetBtn:SetBackdropColor(0.18, 0.18, 0.18, 1)
+        resetBtn:SetBackdropBorderColor(0.6, 0.25, 0.25, 0.6)
+
+        resetBtn.Icon = resetBtn:CreateTexture(nil, "OVERLAY")
+        resetBtn.Icon:SetPoint("LEFT", 8, 0)
+        resetBtn.Icon:SetSize(14, 14)
+        resetBtn.Icon:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\Icons\\refresh")
+        resetBtn.Icon:SetVertexColor(0.7, 0.4, 0.4)
+
+        resetBtn.Text = resetBtn:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
+        resetBtn.Text:SetPoint("LEFT", resetBtn.Icon, "RIGHT", 4, 0)
+        resetBtn.Text:SetText(L["Reset Page"])
+        resetBtn.Text:SetTextColor(0.7, 0.4, 0.4)
+
+        resetBtn:SetScript("OnEnter", function(self)
+            self:SetBackdropColor(0.4, 0.15, 0.15, 1)
+            self:SetBackdropBorderColor(1, 0.4, 0.4, 1)
+            self.Text:SetTextColor(1, 0.7, 0.7)
+            self.Icon:SetVertexColor(1, 0.7, 0.7)
+
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(format(L["Reset: %s"], sectionName))
+            local mode = GUI.SelectedMode or "party"
+            local m = (mode == "party") and L["Party"] or L["Raid"]
+            GameTooltip:AddLine(format(L["Reset %s settings on %s mode to defaults. Other settings are not affected."], sectionName, m), 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+
+        resetBtn:SetScript("OnLeave", function(self)
+            self:SetBackdropColor(0.18, 0.18, 0.18, 1)
+            self:SetBackdropBorderColor(0.6, 0.25, 0.25, 0.6)
+            self.Text:SetTextColor(0.7, 0.4, 0.4)
+            self.Icon:SetVertexColor(0.7, 0.4, 0.4)
+            GameTooltip:Hide()
+        end)
+
+        resetBtn:SetScript("OnClick", function()
+            local mode = GUI.SelectedMode or "party"
+            local m = (mode == "party") and L["Party"] or L["Raid"]
+            StaticPopupDialogs["DANDERSFRAMES_RESET_SECTION"] = {
+                text = format(L["Reset %s settings to defaults?\n\nThis only affects %s settings on the current %s mode. This cannot be undone."], sectionName, sectionName, m),
+                button1 = L["Reset"],
+                button2 = L["Cancel"],
+                OnAccept = function()
+                    DF:ResetSectionSettings(prefixes, mode)
+                    if GUI.RefreshCurrentPage then GUI:RefreshCurrentPage() end
+                end,
+                timeout = 0,
+                whileDead = true,
+                hideOnEscape = true,
+            }
+            StaticPopup_Show("DANDERSFRAMES_RESET_SECTION")
+        end)
+
         -- Initial update
         UpdateAppearance()
-        
+
         -- Register for theme updates
         if not parent.ThemeListeners then parent.ThemeListeners = {} end
         table.insert(parent.ThemeListeners, {UpdateTheme = UpdateAppearance})
-        
+
         return btn
     end
 

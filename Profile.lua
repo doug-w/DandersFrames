@@ -119,6 +119,68 @@ function DF:CopySectionSettings(prefixes, srcMode)
     return srcMode, destMode
 end
 
+-- Resets a section of settings to their built-in defaults for a single mode.
+-- prefixes: same key-prefix array used by Copy/Sync, e.g. {"healthColor", ...}
+-- mode: "party" or "raid". Only the given mode is touched unless this section
+-- is currently Synced (linkedSections), in which case the other mode is mirrored
+-- so they stay in sync.
+function DF:ResetSectionSettings(prefixes, mode)
+    if not DF.db then return end
+    mode = mode or "party"
+    if not DF.db[mode] then return end
+
+    local defaults = (mode == "party") and DF.PartyDefaults or DF.RaidDefaults
+    if not defaults then return end
+
+    -- Unwrap proxy for iteration (Lua 5.1 has no __pairs)
+    local src = DF.db[mode]
+    local mt = getmetatable(src)
+    if mt and mt.__realTable then src = mt.__realTable end
+
+    local count = 0
+    -- Snapshot keys first — mutating during iteration with prefixes-not-in-defaults
+    -- would otherwise be unsafe.
+    local keys = {}
+    for key in pairs(src) do keys[#keys + 1] = key end
+
+    for _, key in ipairs(keys) do
+        for _, prefix in ipairs(prefixes) do
+            if key:sub(1, #prefix) == prefix then
+                local defaultVal = defaults[key]
+                if defaultVal == nil then
+                    -- Key has no default; clear it so the migration system can
+                    -- backfill cleanly on next load.
+                    DF.db[mode][key] = nil
+                elseif type(defaultVal) == "table" then
+                    DF.db[mode][key] = DF:DeepCopy(defaultVal)
+                else
+                    DF.db[mode][key] = defaultVal
+                end
+                count = count + 1
+                break
+            end
+        end
+    end
+
+    -- If this section is currently Synced, mirror the reset to the other mode.
+    if DF.db.linkedSections then
+        for pageId, prefixesForPage in pairs(DF.SectionRegistry or {}) do
+            if DF.db.linkedSections[pageId] and prefixesForPage == prefixes then
+                DF:CopySectionSettingsRaw(prefixes, mode)
+                break
+            end
+        end
+    end
+
+    DF:FullProfileRefresh()
+
+    local L = DF.L
+    local m = (mode == "party") and "Party" or "Raid"
+    print("|cff00ff00DandersFrames:|r " .. format(L["Reset %d %s settings to defaults."], count, m))
+
+    return count
+end
+
 -- ============================================================
 -- PROFILE LIST MANAGEMENT
 -- ============================================================
