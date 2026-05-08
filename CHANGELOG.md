@@ -1,6 +1,6 @@
 # DandersFrames Changelog
 
-## [Unreleased]
+## [4.3.8] - 2026-05-08
 
 ### New Features
 
@@ -10,20 +10,20 @@
 
 ### Improvements
 
-* The Reset, Copy, and Sync confirmation popups now use the addon's built-in popup style instead of the default Blizzard popup, matching the rest of the wizard and alert dialogs.
-* (Aura Designer) Sound indicator: "Missing Trigger" can now be toggled off so only the Expire Alert fires. Expire Alert now has its own Loop Interval and a Play Once option. Start Delay and Loop Interval no longer affect the Expire Alert. (PR #54 by Krathe)
+* Reset, Copy, and Sync confirmation popups now use the addon's themed popup style.
+* (Aura Designer) Reworked sound indicator: Missing Trigger and Expire Alert can now be toggled independently, with separate loop intervals and a new Play Once option. (PR #54 by Krathe)
 
 ### Bug Fixes
 
-* (Arena/Solo Shuffle) Fix teammate frames not updating between rounds when FrameSort is active. New teammates now appear correctly at the start of each round instead of showing the previous round's team. (PR #50 by Krathe)
+* (Arena/Solo Shuffle) Fix teammate frames not updating between rounds when FrameSort is active. (PR #50 by Krathe)
 * (Aura Designer) Fix new indicators briefly appearing above the minimap until the strata setting was toggled. (PR #51 by Krathe)
-* (Pinned Frames) Fix auras not appearing on pinned frames when the pinned unit is not shown in the main party or raid frames (e.g. yourself with "Hide Self from Party Frames" enabled). (PR #52 by Krathe)
-* (Aura Designer) Fix indicators briefly not firing on the first aura application after joining a group or entering a new zone. (PR #53 by Krathe)
+* (Pinned Frames) Fix auras not showing on pinned frames when the unit isn't on your main party or raid frames. (PR #52 by Krathe)
+* (Aura Designer) Fix indicators not firing on the first aura application after joining a group or entering a new zone. (PR #53 by Krathe)
 * (Aura Designer) Fix sound expire alert not re-triggering after a buff is refreshed and decays again. (PR #54 by Krathe)
-* (Targeted List) Fix self-target colour overlay obscuring cast bar text, occasionally appearing on bars not targeting the player, and snapping off instead of fading with the bar. (PR #55 by Krathe)
-* (Aura Designer) Fix Global Defaults changes (Default Icon Size, Frame Level/Strata, fonts, etc.) and the "Import Buffs Tab Defaults" button not applying to live frames without a /reload.
-* (Aura Designer) Fix the "Reset All Aura Configs" button not clearing indicators from live frames until /reload.
-* (Aura Designer) Fix "Color Duration by Time" not transitioning live as the buff ticks down. The duration text now smoothly shifts green → yellow → orange → red on icon, square, and bar indicators without needing a fresh aura application.
+* (Targeted List) Fix self-target colour overlay covering the text, sticking on the wrong bar, and snapping off instead of fading. (PR #55 by Krathe)
+* (Aura Designer) Fix Global Defaults changes not applying to live frames without a /reload.
+* (Aura Designer) Fix the Reset All Aura Configs button not clearing indicators from live frames until /reload.
+* (Aura Designer) Fix Color Duration by Time not transitioning live as a buff ticks down on icon, square, and bar indicators.
 
 ## [4.3.7] - 2026-05-07
 
