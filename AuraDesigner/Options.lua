@@ -2906,7 +2906,6 @@ local function BuildTypeContent(parent, typeKey, auraName, width, optProxy, yOff
                 local banner = CreateFrame("Frame", nil, parent, "BackdropTemplate")
                 banner:SetHeight(36)
                 banner:SetWidth(contentWidth - 10)
-                if not banner.SetBackdrop then Mixin(banner, BackdropTemplateMixin) end
                 banner:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
                 banner:SetBackdropColor(0.25, 0.22, 0.10, 1)
                 banner:SetBackdropBorderColor(0.6, 0.55, 0.2, 0.6)

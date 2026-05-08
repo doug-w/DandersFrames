@@ -353,18 +353,6 @@ function Provider:GetUnitAuras(unit, spec)
                     unmatched[#unmatched + 1] = sid
                 end
             end
-        elseif GetUnitAuras then
-            for _, filter in ipairs({ "HELPFUL|PLAYER", "HARMFUL" }) do
-                local auras = GetUnitAuras(unit, filter, 100)
-                if auras then
-                    for _, ad in ipairs(auras) do
-                        local sid = ad.spellId
-                        if sid and not issecretvalue(sid) and not lookup[sid] then
-                            unmatched[#unmatched + 1] = sid
-                        end
-                    end
-                end
-            end
         end
         if #unmatched > 0 then
             DF:Debug("AD", "  unmatched IDs on %s: %s", unit, table.concat(unmatched, ", "))

@@ -1852,17 +1852,19 @@ function directModeSubscriber:OnUnitAura(event, unit, updateInfo)
         -- never shown by pinned party/raid frames.
         if not IsRosterUnit(unit) then return end
         -- Check if any enabled pinned header currently shows this unit.
-        -- SecureGroupHeaderTemplate assigns children contiguously, so we
-        -- break as soon as GetAttribute returns nil (no more children).
+        -- Mirrors the gating used by TriggerAuraUpdateForUnit so we don't
+        -- pay the scan/delta cost for disabled or invisible pinned children.
         local shownInPinned = false
         if DF.PinnedFrames and DF.PinnedFrames.initialized and DF.PinnedFrames.headers then
+            local pinnedDB = DF.db and DF.db[IsInRaid() and "raid" or "party"]
+            pinnedDB = pinnedDB and pinnedDB.pinnedFrames
             for setIndex = 1, 2 do
                 local header = DF.PinnedFrames.headers[setIndex]
-                if header and header:IsShown() then
+                local set = pinnedDB and pinnedDB.sets and pinnedDB.sets[setIndex]
+                if header and header:IsShown() and set and set.enabled then
                     for i = 1, 40 do
                         local child = header:GetAttribute("child" .. i)
-                        if not child then break end  -- children are contiguous
-                        if child.unit == unit then
+                        if child and child:IsVisible() and child.unit == unit then
                             shownInPinned = true
                             break
                         end
@@ -1942,12 +1944,16 @@ function DF:DirectScanAllUnits()
             if header and header:IsShown() then
                 for i = 1, 40 do
                     local child = header:GetAttribute("child" .. i)
-                    if not child then break end  -- children are contiguous
-                    local unit = child.unit
-                    if unit and not DF.unitFrameMap[unit] and not scanned[unit] then
-                        scanned[unit] = true
-                        ScanUnitDirect(unit)
-                        TriggerAuraUpdateForUnit(unit)
+                    -- Pinned headers pre-create all 40 children up-front, so
+                    -- we walk every slot and let child.unit being nil filter
+                    -- out the unassigned ones.
+                    if child then
+                        local unit = child.unit
+                        if unit and not DF.unitFrameMap[unit] and not scanned[unit] then
+                            scanned[unit] = true
+                            ScanUnitDirect(unit)
+                            TriggerAuraUpdateForUnit(unit)
+                        end
                     end
                 end
             end
