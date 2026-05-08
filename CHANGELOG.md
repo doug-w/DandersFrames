@@ -14,6 +14,9 @@
 * (Aura Designer) Fix indicators briefly not firing on the first aura application after joining a group or entering a new zone. (PR #53 by Krathe)
 * (Aura Designer) Fix sound expire alert not re-triggering after a buff is refreshed and decays again. (PR #54 by Krathe)
 * (Targeted List) Fix self-target colour overlay obscuring cast bar text, occasionally appearing on bars not targeting the player, and snapping off instead of fading with the bar. (PR #55 by Krathe)
+* (Aura Designer) Fix Global Defaults changes (Default Icon Size, Frame Level/Strata, fonts, etc.) and the "Import Buffs Tab Defaults" button not applying to live frames without a /reload.
+* (Aura Designer) Fix the "Reset All Aura Configs" button not clearing indicators from live frames until /reload.
+* (Aura Designer) Fix "Color Duration by Time" not transitioning live as the buff ticks down. The duration text now smoothly shifts green → yellow → orange → red on icon, square, and bar indicators without needing a fresh aura application.
 
 ## [4.3.7] - 2026-05-07
 

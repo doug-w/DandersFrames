@@ -3145,6 +3145,7 @@ local function BuildGlobalView(parent)
             rawDefaults[k] = v
             RefreshPlacedIndicators()
             RefreshPreviewEffects()
+            RefreshLiveFramesThrottled()
         end,
     })
 
@@ -3324,6 +3325,7 @@ local function BuildGlobalView(parent)
         resetBtn:SetScript("OnClick", function()
             wipe(GetAuraDesignerDB().auras)
             DF:AuraDesigner_RefreshPage()
+            RefreshLiveFramesThrottled()
             DF:Debug("Aura Designer: Reset all aura configurations")
         end)
         g:AddWidget(resetBtn, 32)

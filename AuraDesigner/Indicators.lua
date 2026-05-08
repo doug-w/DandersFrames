@@ -1854,7 +1854,27 @@ function Indicators:UpdateIcon(frame, config, auraData, defaults, auraName, prio
                         icon.nativeCooldownText:SetTextColor(r, g, b, 1)
                     end
                 end
+                -- Register for ongoing per-tick gradient updates (API path only).
+                -- Without this, SetTextColor above would only fire on aura events
+                -- and the gradient would freeze between events. The shared ticker
+                -- auto-cleans up when the text is hidden.
+                if usedAPI and DF.durationColorCurve then
+                    RegisterExpiring(icon.nativeCooldownText, {
+                        unit = frame.unit,
+                        auraInstanceID = auraData.auraInstanceID,
+                        duration = auraData.duration,
+                        colorCurve = DF.durationColorCurve,
+                        applyResult = function(el, result)
+                            if result and result.r then
+                                el:SetTextColor(result.r, result.g, result.b, 1)
+                            end
+                        end,
+                    })
+                else
+                    UnregisterExpiring(icon.nativeCooldownText)
+                end
             else
+                UnregisterExpiring(icon.nativeCooldownText)
                 local durationColor = config.durationColor or (defaults and defaults.durationColor)
                 if durationColor then
                     icon.nativeCooldownText:SetTextColor(durationColor.r or 1, durationColor.g or 1, durationColor.b or 1, 1)
@@ -2482,7 +2502,24 @@ function Indicators:UpdateSquare(frame, config, auraData, defaults, auraName, pr
                         sq.nativeCooldownText:SetTextColor(r, g, b, 1)
                     end
                 end
+                -- Register for ongoing per-tick gradient updates (API path only).
+                if usedAPI and DF.durationColorCurve then
+                    RegisterExpiring(sq.nativeCooldownText, {
+                        unit = frame.unit,
+                        auraInstanceID = auraData.auraInstanceID,
+                        duration = auraData.duration,
+                        colorCurve = DF.durationColorCurve,
+                        applyResult = function(el, result)
+                            if result and result.r then
+                                el:SetTextColor(result.r, result.g, result.b, 1)
+                            end
+                        end,
+                    })
+                else
+                    UnregisterExpiring(sq.nativeCooldownText)
+                end
             else
+                UnregisterExpiring(sq.nativeCooldownText)
                 local durationColor = config.durationColor or (defaults and defaults.durationColor)
                 if durationColor then
                     sq.nativeCooldownText:SetTextColor(durationColor.r or 1, durationColor.g or 1, durationColor.b or 1, 1)
@@ -3328,6 +3365,7 @@ function Indicators:UpdateBar(frame, config, auraData, defaults, auraName, prior
                 end
 
                 if not durationColorByTime then
+                    UnregisterExpiring(bar.nativeCooldownText)
                     bar.nativeCooldownText:SetTextColor(1, 1, 1, 1)
                 elseif durationObj and durationObj.EvaluateRemainingPercent then
                     if not DF.durationColorCurve then
@@ -3342,6 +3380,23 @@ function Indicators:UpdateBar(frame, config, auraData, defaults, auraName, prior
                     if result and result.r then
                         bar.nativeCooldownText:SetTextColor(result.r, result.g, result.b, 1)
                     end
+                    -- Register for ongoing per-tick gradient updates so the colour
+                    -- transitions live as the buff ticks down, not just on aura events.
+                    if frame.unit and auraData and auraData.auraInstanceID then
+                        RegisterExpiring(bar.nativeCooldownText, {
+                            unit = frame.unit,
+                            auraInstanceID = auraData.auraInstanceID,
+                            duration = auraData.duration,
+                            colorCurve = DF.durationColorCurve,
+                            applyResult = function(el, result)
+                                if result and result.r then
+                                    el:SetTextColor(result.r, result.g, result.b, 1)
+                                end
+                            end,
+                        })
+                    end
+                else
+                    UnregisterExpiring(bar.nativeCooldownText)
                 end
 
                 -- Register wrapper for ongoing hide-above alpha updates
