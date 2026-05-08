@@ -538,6 +538,7 @@ local function EnsureTypeConfig(auraName, typeKey)
                 soundFile = nil,
                 soundLSMKey = nil,
                 volume = 0.8,
+                missingEnabled = true,
                 triggerMode = "ANY_MISSING",
                 combatMode = "ALWAYS",
                 startDelay = 2,
@@ -545,6 +546,8 @@ local function EnsureTypeConfig(auraName, typeKey)
                 expireEnabled = false,
                 expireThreshold = 5,
                 expireThresholdMode = "SECONDS",
+                expirePlayOnce = false,
+                expireLoopInterval = 3,
             }
         end
     end
@@ -2894,6 +2897,39 @@ local function BuildTypeContent(parent, typeKey, auraName, width, optProxy, yOff
     elseif typeKey == "sound" then
         -- Enable checkbox
         AddGroup(L["Sound Alert"], function(g)
+            -- Group-only warning banner
+            do
+                local topSpacer = CreateFrame("Frame", nil, parent)
+                topSpacer:SetHeight(4)
+                g:AddWidget(topSpacer, 4)
+
+                local banner = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+                banner:SetHeight(36)
+                banner:SetWidth(contentWidth - 10)
+                if not banner.SetBackdrop then Mixin(banner, BackdropTemplateMixin) end
+                banner:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+                banner:SetBackdropColor(0.25, 0.22, 0.10, 1)
+                banner:SetBackdropBorderColor(0.6, 0.55, 0.2, 0.6)
+
+                local icon = banner:CreateTexture(nil, "OVERLAY")
+                icon:SetPoint("LEFT", 8, 0)
+                icon:SetSize(18, 18)
+                icon:SetTexture("Interface\\AddOns\\DandersFrames\\Media\\Icons\\warning")
+
+                local text = banner:CreateFontString(nil, "OVERLAY", "DFFontHighlightSmall")
+                text:SetPoint("LEFT", icon, "RIGHT", 7, 0)
+                text:SetPoint("RIGHT", banner, "RIGHT", -8, 0)
+                text:SetJustifyH("LEFT")
+                text:SetText(L["Sound alerts only work when you are in a group."])
+                text:SetTextColor(1, 0.82, 0)
+
+                g:AddWidget(banner, 36)
+
+                local spacer = CreateFrame("Frame", nil, parent)
+                spacer:SetHeight(6)
+                g:AddWidget(spacer, 6)
+            end
+
             g:AddWidget(GUI:CreateCheckbox(parent, L["Enable Sound Alert"], proxy, "enabled", function()
                 -- Stop sound immediately when disabled
                 if not proxy.enabled and DF.AuraDesigner.SoundEngine then
@@ -2934,34 +2970,60 @@ local function BuildTypeContent(parent, typeKey, auraName, width, optProxy, yOff
             g:AddWidget(GUI:CreateSlider(parent, L["Volume"], 0, 1, 0.05, proxy, "volume"), 54)
         end)
 
-        -- Trigger Settings
-        AddGroup(L["Trigger"], function(g)
+        -- Missing Trigger
+        AddGroup(L["Missing Trigger"], function(g)
+            -- Initialise nil for older profiles (nil = enabled by default)
+            if proxy.missingEnabled == nil then proxy.missingEnabled = true end
+            local missingOn = proxy.missingEnabled ~= false
+
+            g:AddWidget(GUI:CreateCheckbox(parent, L["Enable Missing Trigger"], proxy, "missingEnabled", function()
+                if not proxy.missingEnabled and DF.AuraDesigner.SoundEngine then
+                    DF.AuraDesigner.SoundEngine:StopAura(auraName)
+                end
+                DF:AuraDesigner_RefreshPage()
+            end), 28)
+
             local triggerModeOptions = {
                 ANY_MISSING = L["Alert if anyone is missing the buff"],
                 ALL_MISSING = L["Alert only if nobody has the buff"],
             }
-            g:AddWidget(GUI:CreateDropdown(parent, L["Trigger Mode"], triggerModeOptions, proxy, "triggerMode"), 54)
+            local triggerModeDD = GUI:CreateDropdown(parent, L["Trigger Mode"], triggerModeOptions, proxy, "triggerMode")
+            g:AddWidget(triggerModeDD, 54)
 
             local combatModeOptions = {
                 ALWAYS         = L["Always"],
                 IN_COMBAT      = L["In Combat Only"],
                 OUT_OF_COMBAT  = L["Out of Combat Only"],
             }
-            g:AddWidget(GUI:CreateDropdown(parent, L["Combat Mode"], combatModeOptions, proxy, "combatMode"), 54)
-        end)
+            local combatModeDD = GUI:CreateDropdown(parent, L["Combat Mode"], combatModeOptions, proxy, "combatMode")
+            g:AddWidget(combatModeDD, 54)
 
-        -- Timing
-        AddGroup(L["Timing"], function(g)
-            g:AddWidget(GUI:CreateSlider(parent, L["Start Delay (sec)"], 0, 10, 0.5, proxy, "startDelay"), 54)
-            g:AddWidget(GUI:CreateSlider(parent, L["Loop Interval (sec)"], 1, 30, 0.5, proxy, "loopInterval"), 54)
+            local startDelaySlider = GUI:CreateSlider(parent, L["Start Delay (sec)"], 0, 10, 0.5, proxy, "startDelay")
+            g:AddWidget(startDelaySlider, 54)
+
+            local loopIntervalSlider = GUI:CreateSlider(parent, L["Loop Interval (sec)"], 1, 30, 0.5, proxy, "loopInterval")
+            g:AddWidget(loopIntervalSlider, 54)
+
+            -- Grey out trigger/timing controls when missing trigger is disabled
+            if not missingOn then
+                triggerModeDD:SetAlpha(0.4)
+                triggerModeDD:EnableMouse(false)
+                combatModeDD:SetAlpha(0.4)
+                combatModeDD:EnableMouse(false)
+                startDelaySlider:SetAlpha(0.4)
+                startDelaySlider:EnableMouse(false)
+                loopIntervalSlider:SetAlpha(0.4)
+                loopIntervalSlider:EnableMouse(false)
+            end
         end)
 
         -- Expire Alert
         AddGroup(L["Expire Alert"], function(g)
-            g:AddWidget(GUI:CreateCheckbox(parent, L["Alert When Expiring"], proxy, "expireEnabled", function()
+            g:AddWidget(GUI:CreateCheckbox(parent, L["Enable Alert When Expiring"], proxy, "expireEnabled", function()
                 if not proxy.expireEnabled and DF.AuraDesigner.SoundEngine then
                     DF.AuraDesigner.SoundEngine:StopAura(auraName)
                 end
+                DF:AuraDesigner_RefreshPage()
             end), 28)
 
             -- Threshold slider + mode toggle (same pattern as CreateExpiringThresholdRow)
@@ -3023,6 +3085,21 @@ local function BuildTypeContent(parent, typeKey, auraName, width, optProxy, yOff
             end)
 
             g:AddWidget(threshContainer, 54)
+
+            -- Play Once toggle
+            local playOnceOn = proxy.expirePlayOnce == true
+            g:AddWidget(GUI:CreateCheckbox(parent, L["Play Once"], proxy, "expirePlayOnce", function()
+                DF:AuraDesigner_RefreshPage()
+            end), 28)
+
+            -- Expire loop interval (greyed out when Play Once is enabled)
+            if proxy.expireLoopInterval == nil then proxy.expireLoopInterval = 3 end
+            local expireLoopSlider = GUI:CreateSlider(parent, L["Loop Interval (sec)"], 1, 30, 0.5, proxy, "expireLoopInterval")
+            g:AddWidget(expireLoopSlider, 54)
+            if playOnceOn then
+                expireLoopSlider:SetAlpha(0.4)
+                expireLoopSlider:EnableMouse(false)
+            end
         end)
     end
 

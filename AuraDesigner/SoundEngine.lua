@@ -108,6 +108,21 @@ function SoundEngine:StartLoop(auraName, soundCfg)
     local s = soundStates[auraName]
     if not s then return end
 
+    -- Initial play
+    local soundFile = DF:GetSoundPath(soundCfg.soundLSMKey) or soundCfg.soundFile
+    local volume = soundCfg.volume or 0.8
+    if not soundFile or volume <= 0 then
+        self:TransitionTo(auraName, STATE_IDLE)
+        return
+    end
+
+    local _, handle = self:PlayWithVolume(soundFile, volume)
+    s.lastHandle = handle
+
+    -- Play Once: no looping ticker. State stays PLAYING (silent) until the
+    -- condition clears, which resets to IDLE and re-arms for the next crossing.
+    if soundCfg.expirePlayOnce then return end
+
     -- Re-read soundCfg fields on every tick so live GUI edits (sound, volume,
     -- loop interval) take effect without requiring the user to disable and
     -- re-enable the sound alert. soundCfg is a reference to the db table, so
@@ -137,17 +152,6 @@ function SoundEngine:StartLoop(auraName, soundCfg)
         local interval = soundCfg.loopInterval or 3
         s.ticker = C_Timer.NewTimer(interval, tick)
     end
-
-    -- Initial play uses the same path to pick up any last-second config changes
-    local soundFile = DF:GetSoundPath(soundCfg.soundLSMKey) or soundCfg.soundFile
-    local volume = soundCfg.volume or 0.8
-    if not soundFile or volume <= 0 then
-        self:TransitionTo(auraName, STATE_IDLE)
-        return
-    end
-
-    local _, handle = self:PlayWithVolume(soundFile, volume)
-    s.lastHandle = handle
 
     local interval = soundCfg.loopInterval or 3
     s.ticker = C_Timer.NewTimer(interval, tick)
@@ -315,38 +319,53 @@ function SoundEngine:RunEvaluation()
         end
     end
 
-    -- Evaluate each sound-configured aura
+    -- Evaluate each sound-configured aura (missing trigger)
     local inCombat = InCombatLockdown()
     for auraName, pd in pairs(presenceData) do
-        local isMissing
-        local triggerMode = pd.soundCfg.triggerMode or "ANY_MISSING"
-
-        if pd.total == 0 then
-            isMissing = false
-        elseif triggerMode == "ALL_MISSING" then
-            isMissing = (pd.present == 0)
-        else  -- ANY_MISSING
-            isMissing = (pd.present < pd.total)
+        local isMissing = false
+        -- missingEnabled: nil defaults to true for older profiles
+        if pd.soundCfg.missingEnabled ~= false then
+            local triggerMode = pd.soundCfg.triggerMode or "ANY_MISSING"
+            if pd.total == 0 then
+                isMissing = false
+            elseif triggerMode == "ALL_MISSING" then
+                isMissing = (pd.present == 0)
+            else  -- ANY_MISSING
+                isMissing = (pd.present < pd.total)
+            end
         end
 
         self:Evaluate(auraName, pd.soundCfg, isMissing, inCombat)
     end
 
     -- Evaluate expire alerts (sound when longest remaining duration drops below threshold)
+    -- The expire alert uses its own timing (always immediate, own loop interval) so we
+    -- build a lightweight config table decoupled from the missing trigger's timing fields.
     for auraName, pd in pairs(presenceData) do
-        local expireCfg = pd.soundCfg
-        if expireCfg.expireEnabled then
+        local soundCfg = pd.soundCfg
+        if soundCfg.expireEnabled then
             local isExpiring = false
             if pd.present > 0 and pd.longestRemaining > 0 then
-                local mode = expireCfg.expireThresholdMode or "SECONDS"
-                if mode == "PERCENT" then
+                local threshMode = soundCfg.expireThresholdMode or "SECONDS"
+                if threshMode == "PERCENT" then
                     local pct = (pd.longestDuration > 0) and (pd.longestRemaining / pd.longestDuration * 100) or 100
-                    isExpiring = pct <= (expireCfg.expireThreshold or 30)
+                    isExpiring = pct <= (soundCfg.expireThreshold or 30)
                 else
-                    isExpiring = pd.longestRemaining <= (expireCfg.expireThreshold or 5)
+                    isExpiring = pd.longestRemaining <= (soundCfg.expireThreshold or 5)
                 end
             end
-            self:Evaluate(auraName .. "|expire", expireCfg, isExpiring, inCombat)
+            -- Expire cfg: startDelay always 0, own loop interval, own play-once flag.
+            -- Other fields (sound file, volume, combat mode) inherited from the sound config.
+            local expireEvalCfg = {
+                soundLSMKey     = soundCfg.soundLSMKey,
+                soundFile       = soundCfg.soundFile,
+                volume          = soundCfg.volume,
+                combatMode      = soundCfg.combatMode,
+                startDelay      = 0,
+                loopInterval    = soundCfg.expireLoopInterval or 3,
+                expirePlayOnce  = soundCfg.expirePlayOnce,
+            }
+            self:Evaluate(auraName .. "|expire", expireEvalCfg, isExpiring, inCombat)
         end
     end
 

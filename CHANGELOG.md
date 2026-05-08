@@ -2,12 +2,17 @@
 
 ## [Unreleased]
 
+### Improvements
+
+* (Aura Designer) Sound indicator: "Missing Trigger" can now be toggled off so only the Expire Alert fires. Expire Alert now has its own Loop Interval and a Play Once option. Start Delay and Loop Interval no longer affect the Expire Alert. (PR #54 by Krathe)
+
 ### Bug Fixes
 
 * (Arena/Solo Shuffle) Fix teammate frames not updating between rounds when FrameSort is active. New teammates now appear correctly at the start of each round instead of showing the previous round's team. (PR #50 by Krathe)
 * (Aura Designer) Fix new indicators briefly appearing above the minimap until the strata setting was toggled. (PR #51 by Krathe)
 * (Pinned Frames) Fix auras not appearing on pinned frames when the pinned unit is not shown in the main party or raid frames (e.g. yourself with "Hide Self from Party Frames" enabled). (PR #52 by Krathe)
 * (Aura Designer) Fix indicators briefly not firing on the first aura application after joining a group or entering a new zone. (PR #53 by Krathe)
+* (Aura Designer) Fix sound expire alert not re-triggering after a buff is refreshed and decays again. (PR #54 by Krathe)
 
 ## [4.3.7] - 2026-05-07
 
